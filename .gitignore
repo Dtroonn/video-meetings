@@ -1,0 +1,32 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# turbo
+.turbo
+
+# build output
+.next
+out
+dist
+build
+*.tsbuildinfo
+
+# testing
+coverage
+
+# env files
+.env*
+!.env.example
+
+# logs
+*.log
+
+# misc
+.DS_Store
+*.pem
+.vercel
+.idea
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
