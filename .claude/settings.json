@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-format.mjs\"",
+            "timeout": 60,
+            "statusMessage": "Running ESLint --fix and Prettier..."
+          }
+        ]
+      }
+    ]
+  }
+}

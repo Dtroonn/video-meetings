@@ -20,11 +20,24 @@ Turborepo monorepo (pnpm workspaces) for a video meetings product.
 
 Before finishing a change, run `pnpm lint`, `pnpm check-types` and `pnpm format:check`.
 
+## Keeping docs in sync
+
+The `CLAUDE.md` files are the source of truth for how the project is put together. When a change alters the architecture, update the matching docs in the same change, not in a later one.
+
+- **What counts:** adding, removing or renaming an app/package, a top-level folder or a key entry file (`main.ts`, `app.module.ts`, `src/app/`); changing ports, scripts, build tooling, test runner, module system or import aliases; adding or replacing a major library or framework (ORM, auth, state management, UI kit, realtime/WebRTC layer); changing a shared preset or a convention listed here.
+- **Where to write it:**
+  - Monorepo-wide (layout, root commands, cross-app conventions) → this file.
+  - App-specific (commands, structure, gotchas) → `apps/<app>/CLAUDE.md`.
+  - New app or package → give it its own `CLAUDE.md` in the same shape (commands, structure, things to know) and add it to **Layout** above.
+- **How to write it:** describe the current state, not the history of the change. Update or delete statements that are no longer true instead of appending to them. Record the _why_ for non-obvious decisions (like the SWC/`paths` note in `apps/api/CLAUDE.md`) so they aren't undone later.
+- **Check before finishing:** make sure the commands, paths, ports and versions named in the docs still match `package.json`, config files and the actual folder layout.
+- Don't edit `apps/web/AGENTS.md` — it is managed by `next dev`.
+
 ## Conventions
 
 - **Dependency versions:** write full caret versions (`"typescript": "^6.0.3"`), never bare majors like `^6`. Internal packages use `"workspace:*"`.
 - **TypeScript:** both apps are on TypeScript 6 (`^6.0.3`). Do not move to 6.1+ or 7 until `typescript-eslint` supports it — its peer range is `<6.1.0`, mirrored in `packages/eslint-config`'s peer dependencies.
 - **Shared config first:** lint and compiler settings belong in `packages/*` presets. App-level `eslint.config.mjs` / `tsconfig.json` should only extend a preset and add app-specific bits (paths, `tsconfigRootDir`, includes).
-- **Strictness:** `strict` and `strictNullChecks` are on for everything via `base.json`. The Nest preset sets `strictPropertyInitialization: false` on purpose (DTOs/entities are populated by decorators).
-- **Formatting:** Prettier is configured only at the root (`.prettierrc`: single quotes, trailing commas, width 100, LF). Don't add per-app Prettier configs; ESLint presets include `eslint-config-prettier` so there are no conflicting style rules.
+- **Strictness:** `strict` and `strictNullChecks` are on for everything via `base.json`. The Nest preset sets `strictPropertyInitialization: false` on purpose (DTOs/entities are populated by decorators). `any` is banned everywhere (`@typescript-eslint/no-explicit-any` is an error in every ESLint preset) — use `unknown` and narrow it; don't turn the rule off in a preset or app config.
+- **Formatting:** Prettier is configured only at the root (`.prettierrc`: single quotes, trailing commas, width 100, LF). Don't add per-app Prettier configs; ESLint presets include `eslint-config-prettier` so there are no conflicting style rules. A Claude Code `PostToolUse` hook (`.claude/settings.json` → `.claude/hooks/lint-format.mjs`) runs on every file Claude writes or edits: `eslint --fix` with the owning app's config (JS/TS only), then Prettier (respecting `.prettierignore`). ESLint errors it can't auto-fix are fed back to Claude to resolve.
 - **New app or package:** put it in `apps/*` or `packages/*`, name it `@video-meetings/<name>`, add `lint` / `check-types` / `build` scripts so Turbo picks it up, and extend the shared presets.
