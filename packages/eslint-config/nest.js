@@ -22,7 +22,6 @@ export const nestConfig = defineConfig([
       },
     },
     rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-unsafe-argument': 'warn',
       // Relative imports are extensionless; the SWC build adds `.js` for Node ESM.
