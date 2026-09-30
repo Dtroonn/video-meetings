@@ -8,6 +8,7 @@ Turborepo monorepo (pnpm workspaces) for a video meetings product.
 - `apps/api` — NestJS 12 backend. See `apps/api/CLAUDE.md`.
 - `packages/eslint-config` — shared ESLint flat configs: `@video-meetings/eslint-config/{base,next,nest}`.
 - `packages/typescript-config` — shared tsconfig presets: `base.json`, `nextjs.json`, `nestjs.json`.
+- `compose.yaml` — local dev services (Docker Compose): PostgreSQL 18 (`postgres:18-alpine`).
 
 ## Commands (run from the repo root)
 
@@ -17,6 +18,14 @@ Turborepo monorepo (pnpm workspaces) for a video meetings product.
 - `pnpm format` / `pnpm format:check` — Prettier for the whole repo.
 - Scope to one app: `pnpm turbo run <task> --filter=@video-meetings/web` (or `pnpm --filter @video-meetings/api <script>`).
 - Add a dependency to one app: `pnpm --filter @video-meetings/<app> add [-D] <pkg>`.
+- `pnpm db:up` / `pnpm db:down` / `pnpm db:logs` — start (waits until healthy), stop, tail logs of the local Postgres. `docker compose down -v` also wipes the data volume.
+
+## Local database
+
+- Postgres runs in Docker via the root `compose.yaml`; defaults are user `postgres`, password `postgres`, database `video_meetings`, host port **5432**.
+- Override them in a root `.env` (template: `.env.example`) — e.g. set `POSTGRES_PORT=5433` if 5432 is already used by another Postgres. Keep `DATABASE_URL` in `apps/api/.env` (template: `apps/api/.env.example`) in sync with those values.
+- The data volume is mounted at `/var/lib/postgresql`, not `/var/lib/postgresql/data`: Postgres 18+ images store data in a per-major-version subdirectory, and mounting the old path breaks them.
+- `.env*` files are gitignored except `.env.example`; never commit real credentials.
 
 Before finishing a change, run `pnpm lint`, `pnpm check-types` and `pnpm format:check`.
 

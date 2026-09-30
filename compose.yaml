@@ -1,0 +1,26 @@
+# Local development services. Start with `pnpm db:up` (or `docker compose up -d`).
+# Values come from the root `.env` (see `.env.example`); the defaults below work out of the box.
+name: video-meetings
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-video_meetings}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      # Postgres 18+ images keep data under /var/lib/postgresql/<major>/, so mount the parent dir
+      # (not /var/lib/postgresql/data as with older images).
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:

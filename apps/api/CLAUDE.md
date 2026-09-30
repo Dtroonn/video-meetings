@@ -21,6 +21,7 @@ NestJS 12 backend. See the root `CLAUDE.md` for monorepo-wide commands and conve
 
 ## Things to know
 
+- **Database:** PostgreSQL from the root `compose.yaml` (`pnpm db:up` from the root). The connection string is `DATABASE_URL` in `apps/api/.env` (copy `apps/api/.env.example`). No ORM or DB client is wired up yet.
 - **Imports are extensionless** (`import { AppService } from './app.service'`). Never add `.js` — ESLint (`no-restricted-imports`) rejects it. The `@/*` alias maps to `src/*`.
 - **Why that works:** this is an ESM package (`"type": "module"`, and Nest 12 itself is ESM-only), which at runtime needs full specifiers. TypeScript uses `moduleResolution: bundler` so it accepts extensionless imports, and the build uses the **SWC builder** (`nest-cli.json`: `builder: "swc"`, `typeCheck: true`), which rewrites them to `./app.service.js` in `dist/`. SWC only does this rewriting when `paths` is set in `tsconfig.json` — do not remove the `paths` entry. Always build/run through `nest build` / `nest start`, not plain `tsc`.
 - **Tests use Vitest, not Jest.** Globals (`describe`, `it`, `expect`, `vi`) are enabled; use `vi.fn()` / `vi.spyOn()` for mocks.
