@@ -2,7 +2,14 @@ packages:
   - apps/*
   - packages/*
 
+# Install scripts allowed to run. Prisma's download the schema engine used by `prisma migrate`.
+onlyBuiltDependencies:
+  - '@prisma/engines'
+  - prisma
+
+# argon2 ships prebuilt binaries (loaded via node-gyp-build), so its source build is not needed.
 ignoredBuiltDependencies:
   - '@swc/core'
+  - argon2
   - sharp
   - unrs-resolver

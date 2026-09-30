@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  email         String         @unique
+  passwordHash  String         @map("password_hash")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+// One row per active refresh token (i.e. per session). The row id is the token's `jti` claim;
+// a refresh deletes the row and creates a new one, so each refresh token works only once.
+model RefreshToken {
+  id        String   @id @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
