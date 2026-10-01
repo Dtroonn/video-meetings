@@ -15,3 +15,9 @@ export interface AccessTokenPayload {
   sub: string;
   email: string;
 }
+
+/** The user a request was authenticated as; read it in controllers with `@CurrentUser()`. */
+export interface AuthenticatedUser {
+  id: string;
+  email: string;
+}

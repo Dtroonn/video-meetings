@@ -12,6 +12,11 @@ interface RefreshTokenPayload {
   jti: string;
 }
 
+const isAccessTokenPayload = (
+  payload: Record<string, unknown>,
+): payload is AccessTokenPayload & Record<string, unknown> =>
+  typeof payload.sub === 'string' && typeof payload.email === 'string';
+
 const isRefreshTokenPayload = (
   payload: Record<string, unknown>,
 ): payload is RefreshTokenPayload & Record<string, unknown> =>
@@ -58,6 +63,28 @@ export class TokensService {
     ]);
 
     return { accessToken, refreshToken };
+  }
+
+  /**
+   * Verifies an access token. Stateless: it's short-lived, so there's no DB lookup.
+   *
+   * @throws UnauthorizedException if the token is invalid or expired (including a refresh token,
+   *   which is signed with a different secret).
+   */
+  async verifyAccessToken(token: string): Promise<AccessTokenPayload> {
+    let payload: Record<string, unknown>;
+    try {
+      payload = await this.jwt.verifyAsync<Record<string, unknown>>(token, {
+        secret: this.config.get('JWT_ACCESS_SECRET', { infer: true }),
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid access token');
+    }
+    if (!isAccessTokenPayload(payload)) {
+      throw new UnauthorizedException('Invalid access token');
+    }
+
+    return { sub: payload.sub, email: payload.email };
   }
 
   /**

@@ -14,6 +14,8 @@ model User {
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
   refreshTokens RefreshToken[]
+  ownedMeetings Meeting[]
+  meetings      MeetingParticipant[]
 
   @@map("users")
 }
@@ -29,4 +31,31 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+model Meeting {
+  id           String               @id @default(uuid(7)) @db.Uuid
+  title        String
+  date         DateTime
+  ownerId      String               @map("owner_id") @db.Uuid
+  owner        User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  participants MeetingParticipant[]
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+
+  @@index([ownerId, date])
+  @@map("meetings")
+}
+
+// Users invited to a meeting (the owner isn't added implicitly). The foreign key on `user_id` is
+// what rejects unknown participants when a meeting is created.
+model MeetingParticipant {
+  meetingId String  @map("meeting_id") @db.Uuid
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  userId    String  @map("user_id") @db.Uuid
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([meetingId, userId])
+  @@index([userId])
+  @@map("meeting_participants")
 }

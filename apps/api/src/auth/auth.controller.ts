@@ -9,7 +9,10 @@ import { RefreshTokensRequestDto } from './dto/refresh-tokens-request.dto';
 import { RefreshTokensResponseDto } from './dto/refresh-tokens-response.dto';
 import { RegisterRequestDto } from './dto/register-request.dto';
 import { RegisterResponseDto } from './dto/register-response.dto';
+import { Public } from './decorators/public.decorator';
 
+// These endpoints are how a client gets an access token, so they can't require one.
+@Public()
 @Controller('auth')
 export class AuthController {
   constructor(private readonly commandBus: CommandBus) {}

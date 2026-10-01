@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env.validation';
+import { MeetingsModule } from './meetings/meetings.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -14,6 +15,7 @@ import { PrismaModule } from './prisma/prisma.module';
     CqrsModule.forRoot(),
     PrismaModule,
     AuthModule,
+    MeetingsModule,
   ],
   controllers: [AppController],
   providers: [
