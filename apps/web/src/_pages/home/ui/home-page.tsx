@@ -1,6 +1,6 @@
 import { Card } from '@heroui/react';
 
-export default function Home() {
+export function HomePage() {
   return (
     <main className="flex min-h-dvh items-center justify-center p-6">
       <Card className="w-full max-w-md">

@@ -4,7 +4,7 @@ Turborepo monorepo (pnpm workspaces) for a video meetings product.
 
 ## Layout
 
-- `apps/web` — Next.js 16 frontend (App Router). See `apps/web/CLAUDE.md`.
+- `apps/web` — Next.js 16 frontend (App Router, Feature-Sliced Design). See `apps/web/CLAUDE.md`.
 - `apps/api` — NestJS 12 backend. See `apps/api/CLAUDE.md`.
 - `packages/eslint-config` — shared ESLint flat configs: `@video-meetings/eslint-config/{base,next,nest}`.
 - `packages/typescript-config` — shared tsconfig presets: `base.json`, `nextjs.json`, `nestjs.json`.
@@ -33,7 +33,7 @@ Before finishing a change, run `pnpm lint`, `pnpm check-types` and `pnpm format:
 
 The `CLAUDE.md` files are the source of truth for how the project is put together. When a change alters the architecture, update the matching docs in the same change, not in a later one.
 
-- **What counts:** adding, removing or renaming an app/package, a top-level folder or a key entry file (`main.ts`, `app.module.ts`, `src/app/`); changing ports, scripts, build tooling, test runner, module system or import aliases; adding or replacing a major library or framework (ORM, auth, state management, UI kit, realtime/WebRTC layer); changing a shared preset or a convention listed here.
+- **What counts:** adding, removing or renaming an app/package, a top-level folder or a key entry file (`main.ts`, `app.module.ts`, the web `app/` router folder or an FSD layer); changing ports, scripts, build tooling, test runner, module system or import aliases; adding or replacing a major library or framework (ORM, auth, state management, UI kit, realtime/WebRTC layer); changing a shared preset or a convention listed here.
 - **Where to write it:**
   - Monorepo-wide (layout, root commands, cross-app conventions) → this file.
   - App-specific (commands, structure, gotchas) → `apps/<app>/CLAUDE.md`.
