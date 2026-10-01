@@ -9,6 +9,7 @@ import {
   type RegisterFormInput,
   type RegisterFormOutput,
 } from '../model/register-form';
+import { PasswordInput } from './password-input';
 
 const fields = [
   { name: 'email', label: 'Email', type: 'email', autoComplete: 'email' },
@@ -29,6 +30,9 @@ export function RegisterForm() {
   } = useForm<RegisterFormInput, unknown, RegisterFormOutput>({
     resolver: valibotResolver(registerSchema),
     defaultValues: { email: '', password: '', confirmPassword: '' },
+    // With the default 'firstError', the resolver sets valibot's abortPipeEarly, so any field
+    // issue (e.g. an empty email) stops the schema before the passwords-match check runs.
+    criteriaMode: 'all',
   });
 
   const onSubmit = async ({ email, password }: RegisterFormOutput) => {
@@ -52,10 +56,15 @@ export function RegisterForm() {
           key={name}
           control={control}
           name={name}
+          // Changing the password re-checks the confirmation, so "Passwords do not match"
+          // appears or clears as either field changes (after the first submit, like the rest).
+          rules={name === 'password' ? { deps: 'confirmPassword' } : undefined}
           render={({ field, fieldState }) => (
             <TextField
               fullWidth
-              type={type}
+              isRequired
+              // PasswordInput sets its own type, switching between password and text.
+              type={type === 'password' ? undefined : type}
               autoComplete={autoComplete}
               name={field.name}
               value={field.value}
@@ -65,7 +74,7 @@ export function RegisterForm() {
               isInvalid={fieldState.invalid}
             >
               <Label>{label}</Label>
-              <Input ref={field.ref} />
+              {type === 'password' ? <PasswordInput ref={field.ref} /> : <Input ref={field.ref} />}
               <FieldError>{fieldState.error?.message}</FieldError>
             </TextField>
           )}

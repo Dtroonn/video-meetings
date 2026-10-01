@@ -1,3 +1,42 @@
 /* Tailwind CSS v4 must come first; HeroUI v3 styles and theme build on top of it. */
 @import 'tailwindcss';
 @import '@heroui/styles';
+
+/*
+ * Light theme: HeroUI's default accent and danger are too light for WCAG AA (4.5:1) — white
+ * text on accent buttons was 3.7:1 and danger error text on white 3.6:1. Same hue and chroma,
+ * lower lightness: ~5.5:1, and still ≥ 4.5:1 for the hover state (mixed 10% towards white).
+ * Fields get a visible border: HeroUI's are borderless white with only a faint shadow, which on a
+ * white card fails WCAG 1.4.11 (field boundaries need 3:1). This grey is ≥ 3:1 on both the card
+ * (white) and the page background; the hover border is derived from it and gets darker. On focus
+ * the border turns accent, so it merges with HeroUI's 2px accent focus ring into one blue edge
+ * instead of a grey line inside a blue ring.
+ * The dark theme keeps HeroUI's values; darker danger text would lose contrast there.
+ */
+:root:not(.dark, [data-theme='dark']) {
+  --accent: oklch(0.515 0.195 253.83);
+  --danger: oklch(0.54 0.2328 25.74);
+  --field-border-width: 1px;
+  --field-border: oklch(0.64 0.006 286);
+  --field-border-focus: var(--accent);
+}
+
+/*
+ * InputGroup prefix/suffix draw a divider towards the input with the same --field-border-width,
+ * so the visible field border above would also add a vertical line before a suffix button (e.g.
+ * the password toggle). HeroUI's default has no divider; keep it that way.
+ */
+.input-group__prefix,
+.input-group__suffix {
+  border-inline-width: 0;
+}
+
+/*
+ * HeroUI marks invalid fields with a danger outline (ring when focused) but leaves the border
+ * colour alone, so it showed as a grey (or, focused, accent) line inside the red. Make the
+ * border danger too, in every state, so it reads as one red edge. Unlayered, so it beats the
+ * component's hover/focus border rules in @layer components.
+ */
+:root:not(.dark, [data-theme='dark']) [data-invalid='true'] {
+  border-color: var(--danger);
+}

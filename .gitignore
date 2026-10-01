@@ -33,3 +33,6 @@ coverage
 
 # generated code
 apps/api/src/generated
+
+# Playwright MCP snapshots/screenshots
+.playwright-mcp

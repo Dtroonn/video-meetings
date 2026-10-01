@@ -10,6 +10,7 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@gravity-ui/icons": "^2.22.0",
     "@heroui/react": "^3.2.6",
     "@heroui/styles": "^3.2.6",
     "@hookform/resolvers": "^5.9.1",

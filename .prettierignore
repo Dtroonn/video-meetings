@@ -12,3 +12,4 @@ apps/api/src/generated
 # agent skills / tooling (third-party, not project code)
 .agents
 .claude
+.playwright-mcp
