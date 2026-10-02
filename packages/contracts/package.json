@@ -1,0 +1,31 @@
+{
+  "name": "@video-meetings/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src",
+    "check-types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@video-meetings/eslint-config": "workspace:*",
+    "@video-meetings/typescript-config": "workspace:*",
+    "eslint": "^9.39.5",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3"
+  }
+}

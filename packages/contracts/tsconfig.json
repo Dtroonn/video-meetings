@@ -1,0 +1,4 @@
+{
+  "extends": "@video-meetings/typescript-config/library.json",
+  "include": ["src", "tsup.config.ts"]
+}

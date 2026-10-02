@@ -1,3 +1,8 @@
+import {
+  PARTICIPANTS_MAX_COUNT,
+  TITLE_MAX_LENGTH,
+  type CreateMeetingRequest,
+} from '@video-meetings/contracts';
 import { Transform } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -9,10 +14,7 @@ import {
   MaxLength,
 } from 'class-validator';
 
-export const TITLE_MAX_LENGTH = 200;
-export const PARTICIPANTS_MAX_COUNT = 100;
-
-export class CreateMeetingRequestDto {
+export class CreateMeetingRequestDto implements CreateMeetingRequest {
   @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @IsNotEmpty()

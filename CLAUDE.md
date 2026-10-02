@@ -6,8 +6,9 @@ Turborepo monorepo (pnpm workspaces) for a video meetings product.
 
 - `apps/web` — Next.js 16 frontend (App Router, Feature-Sliced Design). See `apps/web/CLAUDE.md`.
 - `apps/api` — NestJS 12 backend. See `apps/api/CLAUDE.md`.
+- `packages/contracts` — request/response types and validation limits shared by api and web (`@video-meetings/contracts`, built with tsup). See `packages/contracts/CLAUDE.md`.
 - `packages/eslint-config` — shared ESLint flat configs: `@video-meetings/eslint-config/{base,next,nest}`.
-- `packages/typescript-config` — shared tsconfig presets: `base.json`, `nextjs.json`, `nestjs.json`.
+- `packages/typescript-config` — shared tsconfig presets: `base.json`, `library.json`, `nextjs.json`, `nestjs.json`.
 - `compose.yaml` — local dev services (Docker Compose): PostgreSQL 18 (`postgres:18-alpine`).
 
 ## Commands (run from the repo root)

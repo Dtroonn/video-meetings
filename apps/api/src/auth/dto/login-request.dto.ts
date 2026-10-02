@@ -1,8 +1,9 @@
 import { IsEmail, IsNotEmpty, IsString, MaxLength } from 'class-validator';
-import { NormalizeEmail, PASSWORD_MAX_LENGTH } from './validation';
+import { PASSWORD_MAX_LENGTH, type LoginRequest } from '@video-meetings/contracts';
+import { NormalizeEmail } from './validation';
 
 // No password policy on login: a policy change must not lock out existing users.
-export class LoginRequestDto {
+export class LoginRequestDto implements LoginRequest {
   @NormalizeEmail()
   @IsEmail()
   email: string;
