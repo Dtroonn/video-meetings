@@ -2,14 +2,15 @@
 
 import { Button, FieldError, Form, Input, Label, TextField } from '@heroui/react';
 import { valibotResolver } from '@hookform/resolvers/valibot';
+import { useTransition } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { registerUser } from '../api/register';
+import { PasswordInput } from '@/shared/ui';
+import { register } from '../api/register';
 import {
   registerSchema,
   type RegisterFormInput,
   type RegisterFormOutput,
 } from '../model/register-form';
-import { PasswordInput } from './password-input';
 
 const fields = [
   { name: 'email', label: 'Email', type: 'email', autoComplete: 'email' },
@@ -22,11 +23,18 @@ const fields = [
   },
 ] as const;
 
-export function RegisterForm() {
+interface RegisterFormProps {
+  /** Where to go after signing up. */
+  from: string;
+}
+
+export function RegisterForm({ from }: RegisterFormProps) {
+  const [isPending, startTransition] = useTransition();
   const {
     control,
     handleSubmit,
-    formState: { isSubmitting },
+    setError,
+    formState: { errors },
   } = useForm<RegisterFormInput, unknown, RegisterFormOutput>({
     resolver: valibotResolver(registerSchema),
     defaultValues: { email: '', password: '', confirmPassword: '' },
@@ -35,14 +43,12 @@ export function RegisterForm() {
     criteriaMode: 'all',
   });
 
-  const onSubmit = async ({ email, password }: RegisterFormOutput) => {
-    try {
-      const result = await registerUser({ email, password });
-      console.log('POST /auth/register', result);
-    } catch (error) {
-      console.error('POST /auth/register failed', error);
-    }
-  };
+  // On success the Server Function redirects, and isPending stays true until the next page renders.
+  const onSubmit = (data: RegisterFormOutput) =>
+    startTransition(async () => {
+      const { field, message } = await register(data, from);
+      setError(field ?? 'root.server', { message }, { shouldFocus: true });
+    });
 
   return (
     // react-hook-form validates, so the form uses ARIA validation instead of native browser popups.
@@ -80,7 +86,12 @@ export function RegisterForm() {
           )}
         />
       ))}
-      <Button type="submit" variant="primary" fullWidth isPending={isSubmitting}>
+      {errors.root?.server && (
+        <p role="alert" className="text-sm text-danger">
+          {errors.root.server.message}
+        </p>
+      )}
+      <Button type="submit" variant="primary" fullWidth isPending={isPending}>
         Create account
       </Button>
     </Form>

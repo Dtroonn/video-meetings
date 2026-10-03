@@ -1,12 +1,10 @@
 import type { NextConfig } from 'next';
-
-/** Where the NestJS api listens; requests to `/api/*` are proxied there. */
-const apiUrl = process.env.API_URL ?? 'http://localhost:3001';
+import { API_URL } from './src/shared/config';
 
 const nextConfig: NextConfig = {
   // Proxying keeps api calls same-origin, so the api needs no CORS setup.
   rewrites() {
-    return [{ source: '/api/:path*', destination: `${apiUrl}/:path*` }];
+    return [{ source: '/api/:path*', destination: `${API_URL}/:path*` }];
   },
 };
 

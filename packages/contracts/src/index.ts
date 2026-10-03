@@ -1,3 +1,4 @@
+export * from './common/error';
 export * from './auth/auth';
 export * from './auth/limits';
 export * from './meetings/limits';

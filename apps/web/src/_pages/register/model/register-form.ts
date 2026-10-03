@@ -34,3 +34,10 @@ export const registerSchema = v.pipe(
 
 export type RegisterFormInput = v.InferInput<typeof registerSchema>;
 export type RegisterFormOutput = v.InferOutput<typeof registerSchema>;
+
+/** Why sign-up failed; returned by the `register` Server Function instead of a redirect. */
+export interface RegisterError {
+  /** The field the error belongs to; form-level if absent. */
+  field?: 'email';
+  message: string;
+}
