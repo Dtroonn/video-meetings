@@ -21,6 +21,8 @@ Turborepo monorepo (pnpm workspaces) for a video meetings product.
 - Add a dependency to one app: `pnpm --filter @video-meetings/<app> add [-D] <pkg>`.
 - `pnpm db:up` / `pnpm db:down` / `pnpm db:logs` — start (waits until healthy), stop, tail logs of the local Postgres. `docker compose down -v` also wipes the data volume.
 
+**The apps are usually already running.** The developer normally keeps `pnpm dev` (web on :3000, api on :3001) and the database going. To check how something works, use those running apps (browser, `curl localhost:3000/...`). Don't start your own `pnpm dev` and don't stop or kill processes on these ports: a second instance fails with `EADDRINUSE`, and killing one stops the developer's session. Both apps reload on file changes. Start a server yourself only if nothing is listening on its port, and ask first if the check needs different settings (e.g. env vars).
+
 ## Local database
 
 - Postgres runs in Docker via the root `compose.yaml`; defaults are user `postgres`, password `postgres`, database `video_meetings`, host port **5432**.
