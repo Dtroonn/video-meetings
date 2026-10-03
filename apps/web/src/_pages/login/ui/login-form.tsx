@@ -2,39 +2,49 @@
 
 import { Button, FieldError, Form, Input, Label, TextField } from '@heroui/react';
 import { valibotResolver } from '@hookform/resolvers/valibot';
-import { useTransition } from 'react';
+import { useMemo, useTransition } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import type { Dictionary } from '@/shared/i18n';
 import { PasswordInput } from '@/shared/ui';
 import { login } from '../api/login';
-import { loginSchema, type LoginFormInput, type LoginFormOutput } from '../model/login-form';
+import {
+  createLoginSchema,
+  type LoginFormInput,
+  type LoginFormMessages,
+  type LoginFormOutput,
+} from '../model/login-form';
 
 const fields = [
-  { name: 'email', label: 'Email', type: 'email', autoComplete: 'email' },
-  { name: 'password', label: 'Password', type: 'password', autoComplete: 'current-password' },
+  { name: 'email', type: 'email', autoComplete: 'email' },
+  { name: 'password', type: 'password', autoComplete: 'current-password' },
 ] as const;
 
 interface LoginFormProps {
   /** Where to go after logging in. */
   from: string;
+  /** The form's texts in the user's locale, passed down by the page. */
+  messages: LoginFormMessages;
+  passwordInputLabels: Dictionary['common']['passwordInput'];
 }
 
-export function LoginForm({ from }: LoginFormProps) {
+export function LoginForm({ from, messages, passwordInputLabels }: LoginFormProps) {
   const [isPending, startTransition] = useTransition();
+  const schema = useMemo(() => createLoginSchema(messages.validation), [messages.validation]);
   const {
     control,
     handleSubmit,
     setError,
     formState: { errors },
   } = useForm<LoginFormInput, unknown, LoginFormOutput>({
-    resolver: valibotResolver(loginSchema),
+    resolver: valibotResolver(schema),
     defaultValues: { email: '', password: '' },
   });
 
   // On success the Server Function redirects, and isPending stays true until the next page renders.
   const onSubmit = (data: LoginFormOutput) =>
     startTransition(async () => {
-      const error = await login(data, from);
-      setError('root.server', { message: error.message });
+      const { code } = await login(data, from);
+      setError('root.server', { message: messages.errors[code] });
     });
 
   return (
@@ -44,7 +54,7 @@ export function LoginForm({ from }: LoginFormProps) {
       validationBehavior="aria"
       onSubmit={handleSubmit(onSubmit)}
     >
-      {fields.map(({ name, label, type, autoComplete }) => (
+      {fields.map(({ name, type, autoComplete }) => (
         <Controller
           key={name}
           control={control}
@@ -63,8 +73,12 @@ export function LoginForm({ from }: LoginFormProps) {
               isDisabled={field.disabled}
               isInvalid={fieldState.invalid}
             >
-              <Label>{label}</Label>
-              {type === 'password' ? <PasswordInput ref={field.ref} /> : <Input ref={field.ref} />}
+              <Label>{messages[name]}</Label>
+              {type === 'password' ? (
+                <PasswordInput ref={field.ref} labels={passwordInputLabels} />
+              ) : (
+                <Input ref={field.ref} />
+              )}
               <FieldError>{fieldState.error?.message}</FieldError>
             </TextField>
           )}
@@ -76,7 +90,7 @@ export function LoginForm({ from }: LoginFormProps) {
         </p>
       )}
       <Button type="submit" variant="primary" fullWidth isPending={isPending}>
-        Log in
+        {messages.submit}
       </Button>
     </Form>
   );

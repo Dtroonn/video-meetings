@@ -1,4 +1,4 @@
-export { expiresWithin, getTokenExpiry } from './token';
+export { expiresWithin, getTokenExpiry, isAccessTokenActive } from './token';
 export { REDIRECT_PARAM, safeRedirectPath } from './redirect-path';
 export {
   ACCESS_TOKEN_COOKIE,

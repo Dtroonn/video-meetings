@@ -1,1 +1,1 @@
-export { ServerErrorPage, metadata } from './ui/server-error-page';
+export { ServerErrorPage, generateMetadata } from './ui/server-error-page';

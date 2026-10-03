@@ -1,35 +1,23 @@
 'use server';
 
-import type { AuthResponse } from '@video-meetings/contracts';
+import type { AuthResponse, LoginRequest } from '@video-meetings/contracts';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import * as v from 'valibot';
 import { apiPost } from '@/shared/api';
 import { safeRedirectPath, setSessionCookies } from '@/shared/auth';
-import { loginSchema, type LoginError, type LoginFormInput } from '../model/login-form';
+import { type LoginError } from '../model/login-form';
 
 /**
  * `POST /auth/login`. On success stores the tokens in cookies and redirects to `from` (a path on
- * this site, else `/`); on failure returns the error to show.
+ * this site, else `/`); on failure returns the error's code for the form to show.
  */
-export async function login(input: LoginFormInput, from: string): Promise<LoginError> {
-  // Server Functions are public endpoints, so the input is validated again here.
-  const parsed = v.safeParse(loginSchema, input);
-  if (!parsed.success) {
-    return { message: 'Enter a valid email and password' };
-  }
-
-  const response = await apiPost<AuthResponse>('/auth/login', parsed.output);
+export async function login(input: LoginRequest, from: string): Promise<LoginError> {
+  const response = await apiPost<AuthResponse>('/auth/login', input);
   if (!response.ok) {
     if (response.status === 401) {
-      return { message: 'Invalid email or password' };
+      return { code: 'invalidCredentials' };
     }
-    return {
-      message:
-        response.status === 0
-          ? "Can't reach the server. Try again later."
-          : 'Something went wrong. Try again.',
-    };
+    return { code: response.status === 0 ? 'unreachable' : 'unknown' };
   }
 
   setSessionCookies(await cookies(), response.data);

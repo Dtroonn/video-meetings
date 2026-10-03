@@ -21,3 +21,8 @@ export function expiresWithin(token: string, seconds: number): boolean {
   const expiry = getTokenExpiry(token);
   return expiry === null || expiry * 1000 - Date.now() <= seconds * 1000;
 }
+
+/** Whether the access token (if any) is still valid, i.e. the user counts as signed in. */
+export function isAccessTokenActive(token: string | undefined): token is string {
+  return token !== undefined && !expiresWithin(token, 0);
+}

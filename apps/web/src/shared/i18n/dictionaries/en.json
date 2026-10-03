@@ -1,0 +1,131 @@
+{
+  "common": {
+    "localeSwitcherLabel": "Language",
+    "passwordInput": {
+      "show": "Show password",
+      "hide": "Hide password"
+    }
+  },
+  "login": {
+    "metadata": {
+      "title": "Log in · Video Meetings"
+    },
+    "title": "Log in",
+    "description": "Welcome back to Video Meetings.",
+    "newHere": "New here?",
+    "createAccount": "Create an account",
+    "form": {
+      "email": "Email",
+      "password": "Password",
+      "submit": "Log in",
+      "validation": {
+        "emailRequired": "Enter your email",
+        "emailInvalid": "Enter a valid email address",
+        "passwordRequired": "Enter your password",
+        "passwordTooLong": "Password must be at most {max} characters"
+      },
+      "errors": {
+        "invalidCredentials": "Invalid email or password",
+        "unreachable": "Can't reach the server. Try again later.",
+        "unknown": "Something went wrong. Try again."
+      }
+    }
+  },
+  "register": {
+    "metadata": {
+      "title": "Create account · Video Meetings"
+    },
+    "title": "Create an account",
+    "description": "Sign up to start and join meetings.",
+    "haveAccount": "Already have an account?",
+    "logIn": "Log in",
+    "form": {
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "submit": "Create account",
+      "validation": {
+        "emailRequired": "Enter your email",
+        "emailInvalid": "Enter a valid email address",
+        "passwordTooShort": "Password must be at least {min} characters",
+        "passwordTooLong": "Password must be at most {max} characters",
+        "confirmPasswordRequired": "Confirm your password",
+        "passwordsMismatch": "Passwords do not match"
+      },
+      "errors": {
+        "emailTaken": "This email is already registered",
+        "unreachable": "Can't reach the server. Try again later.",
+        "unknown": "Something went wrong. Try again."
+      }
+    }
+  },
+  "serverError": {
+    "metadata": {
+      "title": "Something went wrong · Video Meetings"
+    },
+    "title": "Something went wrong",
+    "description": "We couldn't reach our servers. Your session is safe — try again in a moment.",
+    "retry": "Try again",
+    "home": "Go to the home page"
+  },
+  "home": {
+    "metadata": {
+      "title": "Video Meetings — AI-written meeting minutes",
+      "description": "Upload the recordings and documents of a meeting and get its minutes: a summary, contents, action points and decisions."
+    },
+    "header": {
+      "logIn": "Log in"
+    },
+    "hero": {
+      "title": "Meeting minutes, written by AI",
+      "subtitle": "Create a meeting, upload everything that belongs to it — video, audio and documents — and get a ready protocol: what was said, what was decided and who does what.",
+      "primaryCta": "Get started for free",
+      "secondaryCta": "Log in"
+    },
+    "steps": {
+      "title": "How it works",
+      "items": [
+        {
+          "title": "Create a meeting",
+          "text": "Give it a name and a date. Every meeting gets its own space for all its materials."
+        },
+        {
+          "title": "Upload the files",
+          "text": "Add the recording, the audio, slides and any other documents related to the meeting."
+        },
+        {
+          "title": "Get the protocol",
+          "text": "AI goes through all the materials and prepares the minutes for you in moments."
+        }
+      ]
+    },
+    "protocol": {
+      "title": "What is in the protocol",
+      "subtitle": "Everything you need to remember about a meeting, in one page.",
+      "items": [
+        {
+          "title": "Summary",
+          "text": "A short digest of the meeting: the essence in a minute of reading."
+        },
+        {
+          "title": "Contents",
+          "text": "The topics in the order they were discussed, so you can find any part fast."
+        },
+        {
+          "title": "Action points",
+          "text": "Who has to do what, so no agreement is lost after the call."
+        },
+        {
+          "title": "Decisions",
+          "text": "Every decision that was made, recorded in one place."
+        }
+      ]
+    },
+    "cta": {
+      "title": "Stop writing minutes by hand",
+      "text": "Create an account and turn your next meeting into a protocol.",
+      "button": "Create an account"
+    },
+    "footer": "Video Meetings"
+  }
+}

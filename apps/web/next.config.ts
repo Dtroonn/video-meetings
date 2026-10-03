@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   rewrites() {
     return [{ source: '/api/:path*', destination: `${API_URL}/:path*` }];
   },
+  cacheComponents: true,
 };
 
 export default nextConfig;
