@@ -26,5 +26,5 @@ export async function register(
   setSessionCookies(await cookies(), response.data);
   // The page always passes `from`; the fallback only covers a tampered request. Without a locale,
   // `proxy.ts` adds the user's one.
-  redirect(safeRedirectPath(from, '/dashboard'));
+  redirect(safeRedirectPath(from, '/dashboard'), 'replace');
 }
