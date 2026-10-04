@@ -94,6 +94,32 @@ export class TokensService {
    * @throws UnauthorizedException if the token is invalid, expired or was already used.
    */
   async consumeRefreshToken(token: string): Promise<string> {
+    const payload = await this.verifyRefreshToken(token);
+
+    // A single conditional delete, so two concurrent requests can't both use the same token.
+    const { count } = await this.prisma.refreshToken.deleteMany({
+      where: { id: payload.jti, userId: payload.sub, expiresAt: { gt: new Date() } },
+    });
+    if (count === 0) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    return payload.sub;
+  }
+
+  /**
+   * Ends the session of a refresh token by deleting its row; other sessions of the user stay.
+   * Idempotent: an already used or expired token is simply gone.
+   *
+   * @throws UnauthorizedException if the token isn't a valid refresh token.
+   */
+  async revokeRefreshToken(token: string): Promise<void> {
+    // Verified first, so only the holder of a genuine token can end its session.
+    const payload = await this.verifyRefreshToken(token);
+    await this.prisma.refreshToken.deleteMany({ where: { id: payload.jti, userId: payload.sub } });
+  }
+
+  private async verifyRefreshToken(token: string): Promise<RefreshTokenPayload> {
     let payload: Record<string, unknown>;
     try {
       payload = await this.jwt.verifyAsync<Record<string, unknown>>(token, {
@@ -105,15 +131,6 @@ export class TokensService {
     if (!isRefreshTokenPayload(payload)) {
       throw new UnauthorizedException('Invalid refresh token');
     }
-
-    // A single conditional delete, so two concurrent requests can't both use the same token.
-    const { count } = await this.prisma.refreshToken.deleteMany({
-      where: { id: payload.jti, userId: payload.sub, expiresAt: { gt: new Date() } },
-    });
-    if (count === 0) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
-
-    return payload.sub;
+    return { sub: payload.sub, jti: payload.jti };
   }
 }

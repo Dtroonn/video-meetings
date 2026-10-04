@@ -1,10 +1,12 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { LoginCommand } from './commands/login/login.command';
+import { LogoutCommand } from './commands/logout/logout.command';
 import { RefreshTokensCommand } from './commands/refresh-tokens/refresh-tokens.command';
 import { RegisterCommand } from './commands/register/register.command';
 import { LoginRequestDto } from './dto/login-request.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
+import { LogoutRequestDto } from './dto/logout-request.dto';
 import { RefreshTokensRequestDto } from './dto/refresh-tokens-request.dto';
 import { RefreshTokensResponseDto } from './dto/refresh-tokens-response.dto';
 import { RegisterRequestDto } from './dto/register-request.dto';
@@ -37,5 +39,12 @@ export class AuthController {
   ): Promise<RefreshTokensResponseDto> {
     const tokens = await this.commandBus.execute(new RefreshTokensCommand(refreshToken));
     return new RefreshTokensResponseDto(tokens);
+  }
+
+  // Public like the rest: the access token may well have expired by the time the user logs out.
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async logout(@Body() { refreshToken }: LogoutRequestDto): Promise<void> {
+    await this.commandBus.execute(new LogoutCommand(refreshToken));
   }
 }
