@@ -10,7 +10,7 @@ Request/response shapes and validation limits shared by `apps/api` and `apps/web
 
 ## Structure
 
-- `src/<area>/` (`auth`, `meetings`, `users`) — interfaces named `<Name>Request` / `<Name>Response`, plus `limits.ts` with constants such as `PASSWORD_MAX_LENGTH`.
+- `src/<area>/` (`auth`, `meetings`, `users`) — interfaces named `<Name>Request` / `<Name>Response`, plus `limits.ts` with constants such as `PASSWORD_MAX_LENGTH`. `auth/cookies.ts` holds the session cookie names (`ACCESS_TOKEN_COOKIE`, `REFRESH_TOKEN_COOKIE`): the web app sets them, the api reads the access token from its cookie.
 - `src/common/` — shapes not tied to one area: `ApiErrorResponse`, the body of every api error (NestJS's default exception body: `statusCode`, `message` as one string or one per field, optional `error`). The api has no DTO for it because Nest produces it itself.
 - `src/index.ts` — the only entry point; re-export everything new from it.
 
