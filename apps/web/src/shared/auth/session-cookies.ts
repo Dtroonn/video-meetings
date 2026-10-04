@@ -1,9 +1,13 @@
-import type { TokensResponse } from '@video-meetings/contracts';
+import {
+  ACCESS_TOKEN_COOKIE,
+  REFRESH_TOKEN_COOKIE,
+  type TokensResponse,
+} from '@video-meetings/contracts';
 import type { ResponseCookies } from 'next/dist/server/web/spec-extension/cookies';
 import { getTokenExpiry } from './token';
 
-export const ACCESS_TOKEN_COOKIE = 'access_token';
-export const REFRESH_TOKEN_COOKIE = 'refresh_token';
+// Defined in contracts: the api reads the access token from the same cookie.
+export { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE };
 
 /** What both `await cookies()` (in Server Functions / Route Handlers) and `NextResponse.cookies` offer. */
 export type CookieWriter = Pick<ResponseCookies, 'set' | 'delete'>;
@@ -15,8 +19,9 @@ function maxAgeOf(token: string): number | undefined {
 }
 
 /**
- * Stores a token pair in httpOnly cookies, so client-side JS never sees the tokens. `proxy.ts`
- * turns the access token into an `Authorization` header for `/api/*` requests.
+ * Stores a token pair in httpOnly cookies, so client-side JS never sees the tokens. The browser
+ * sends them with same-origin `/api/*` requests, and the api reads the access token from its
+ * cookie when there's no `Authorization` header.
  */
 export function setSessionCookies(
   store: CookieWriter,

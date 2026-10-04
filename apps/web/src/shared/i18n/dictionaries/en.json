@@ -74,7 +74,8 @@
       "description": "Upload the recordings and documents of a meeting and get its minutes: a summary, contents, action points and decisions."
     },
     "header": {
-      "logIn": "Log in"
+      "logIn": "Log in",
+      "dashboard": "Dashboard"
     },
     "hero": {
       "title": "Meeting minutes, written by AI",
@@ -127,5 +128,28 @@
       "button": "Create an account"
     },
     "footer": "Video Meetings"
+  },
+  "dashboard": {
+    "metadata": {
+      "title": "Dashboard · Video Meetings"
+    },
+    "layout": {
+      "userMenu": "Account menu",
+      "signedInAs": "Signed in as",
+      "profile": "Profile",
+      "logOut": "Log out"
+    },
+    "page": {
+      "greeting": "Hello, {email}",
+      "greetingNoUser": "Welcome!",
+      "loadingUser": "Loading your profile…",
+      "userError": "Couldn't load your profile.",
+      "retry": "Try again",
+      "createMeeting": "Create meeting",
+      "meetingsCount": "Meetings",
+      "meetingsCountHint": "Ones you own or were invited to",
+      "recentMeetings": "Latest meetings",
+      "noMeetings": "You have no meetings yet. Create the first one."
+    }
   }
 }

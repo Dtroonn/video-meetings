@@ -8,19 +8,25 @@ export type ApiResponse<T> =
 /**
  * Sends a JSON `POST` straight to the api. Server-side only (Server Functions, Route Handlers,
  * proxy): it uses the absolute `API_URL`, not the browser's `/api` rewrite. A network failure
- * resolves to `{ ok: false, status: 0 }` instead of throwing.
+ * resolves to `{ ok: false, status: 0 }` instead of throwing. A response without a body (204)
+ * resolves to `data: undefined`.
  */
-export async function apiPost<T>(path: string, data: unknown): Promise<ApiResponse<T>> {
+export function apiPost<T>(path: string, data: unknown): Promise<ApiResponse<T>> {
+  return apiRequest<T>(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+/** Sends a request straight to the api; the building block of `apiPost` and `apiGet`. */
+export async function apiRequest<T>(path: string, init: RequestInit): Promise<ApiResponse<T>> {
   let response: Response;
   let body: unknown;
   try {
-    response = await fetch(`${API_URL}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-      cache: 'no-store',
-    });
-    body = await response.json();
+    response = await fetch(`${API_URL}${path}`, { ...init, cache: 'no-store' });
+    const text = await response.text();
+    body = text ? JSON.parse(text) : undefined;
   } catch {
     return { ok: false, status: 0, error: { statusCode: 0, message: 'The api is unreachable' } };
   }
@@ -31,7 +37,7 @@ export async function apiPost<T>(path: string, data: unknown): Promise<ApiRespon
   return {
     ok: false,
     status: response.status,
-    error: (body as ApiErrorResponse | null) ?? {
+    error: (body as ApiErrorResponse | undefined) ?? {
       statusCode: response.status,
       message: response.statusText,
     },

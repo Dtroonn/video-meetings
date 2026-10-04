@@ -74,7 +74,8 @@
       "description": "Загрузите записи и документы встречи и получите её протокол: краткую выжимку, содержание, экшн-поинты и принятые решения."
     },
     "header": {
-      "logIn": "Войти"
+      "logIn": "Войти",
+      "dashboard": "В личный кабинет"
     },
     "hero": {
       "title": "Протокол встречи — за вас, с помощью ИИ",
@@ -127,5 +128,28 @@
       "button": "Создать аккаунт"
     },
     "footer": "Video Meetings"
+  },
+  "dashboard": {
+    "metadata": {
+      "title": "Личный кабинет · Video Meetings"
+    },
+    "layout": {
+      "userMenu": "Меню аккаунта",
+      "signedInAs": "Вы вошли как",
+      "profile": "Профиль",
+      "logOut": "Выйти"
+    },
+    "page": {
+      "greeting": "Привет, {email}",
+      "greetingNoUser": "Добро пожаловать!",
+      "loadingUser": "Загружаем профиль…",
+      "userError": "Не удалось загрузить профиль.",
+      "retry": "Повторить",
+      "createMeeting": "Создать встречу",
+      "meetingsCount": "Встречи",
+      "meetingsCountHint": "Ваши и те, куда вас пригласили",
+      "recentMeetings": "Последние встречи",
+      "noMeetings": "У вас пока нет встреч. Создайте первую."
+    }
   }
 }

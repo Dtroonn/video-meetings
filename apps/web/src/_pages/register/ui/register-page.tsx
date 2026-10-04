@@ -16,8 +16,10 @@ interface RegisterPageProps {
 }
 
 export async function RegisterPage({ searchParams }: RegisterPageProps) {
-  const from = safeRedirectPath((await searchParams)[REDIRECT_PARAM]);
   const locale = await getLocale();
+  // Without a page to return to (or with an unsafe one), go to the dashboard.
+  const defaultFrom = localePath(locale, '/dashboard');
+  const from = safeRedirectPath((await searchParams)[REDIRECT_PARAM], defaultFrom);
   const { common, register: t } = await getDictionary();
 
   return (
@@ -40,7 +42,7 @@ export async function RegisterPage({ searchParams }: RegisterPageProps) {
               className={linkVariants().base({ className: 'underline underline-offset-4' })}
               href={{
                 pathname: localePath(locale, '/login'),
-                query: from === '/' ? undefined : { [REDIRECT_PARAM]: from },
+                query: from === defaultFrom ? undefined : { [REDIRECT_PARAM]: from },
               }}
             >
               {t.logIn}

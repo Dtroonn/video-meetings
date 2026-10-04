@@ -3,6 +3,7 @@ import {
   ACCESS_TOKEN_COOKIE,
   REDIRECT_PARAM,
   REFRESH_TOKEN_COOKIE,
+  SESSION_EXPIRED_PATH,
   clearSessionCookies,
   expiresWithin,
   isAccessTokenActive,
@@ -33,7 +34,7 @@ const GUEST_ONLY_PATHS = new Set(['/login', '/register']);
  * Pages open to everyone, signed in or not. **Every other page requires a session** (most of the
  * app is private, so protection is the default): add a path here to make a new page public.
  */
-const PUBLIC_PATHS = new Set(['/', SERVER_ERROR_PATH, ...GUEST_ONLY_PATHS]);
+const PUBLIC_PATHS = new Set(['/', SERVER_ERROR_PATH, SESSION_EXPIRED_PATH, ...GUEST_ONLY_PATHS]);
 
 /**
  * Runs before every page and Server Function request (see `config.matcher`):
@@ -142,8 +143,8 @@ function loginRedirect(request: NextRequest, locale: Locale): NextResponse {
 export const config = {
   matcher: [
     // Everything except static assets and `/api/*`. Api calls never need the proxy: in production
-    // nginx sends them straight to the api and the client adds the `Authorization` header itself;
-    // the rest are our own Route Handlers (e.g. `/api/auth/refresh`), which rotate on their own.
+    // nginx sends them straight to the api, which reads the access token from its cookie; the
+    // rest are our own Route Handlers (e.g. `/api/auth/refresh`), which rotate on their own.
     '/((?!api/|_next/static|_next/image|favicon\.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml)$).*)',
   ],
 };

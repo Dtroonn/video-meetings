@@ -8,8 +8,8 @@ import {
   type Dictionary,
   type Locale,
 } from '@/shared/i18n';
+import { isSignedIn } from '@/shared/auth/server';
 import { ButtonSkeleton } from '@/shared/ui';
-import { GuestOnly } from './guest-only';
 
 interface HomeHeaderProps {
   locale: Locale;
@@ -29,19 +29,26 @@ export function HomeHeader({ locale, localeSwitcherLabel, t }: HomeHeaderProps) 
           <Suspense fallback={<LocaleSwitcherSkeleton />}>
             <LocaleSwitcher locale={locale} label={localeSwitcherLabel} />
           </Suspense>
-          {/* Signed-in users have nothing to log into: /login would just send them back here. */}
+          {/* Reads the session; the fallback is the signed-out version's size. */}
           <Suspense fallback={<ButtonSkeleton size="sm" label={t.logIn} />}>
-            <GuestOnly>
-              <Link
-                href={localePath(locale, '/login')}
-                className={buttonVariants({ variant: 'primary', size: 'sm' })}
-              >
-                {t.logIn}
-              </Link>
-            </GuestOnly>
+            <AccountLink locale={locale} t={t} />
           </Suspense>
         </div>
       </div>
     </header>
+  );
+}
+
+/** Log in for signed-out visitors; signed-in ones have nothing to log into, so their dashboard. */
+async function AccountLink({ locale, t }: Omit<HomeHeaderProps, 'localeSwitcherLabel'>) {
+  const signedIn = await isSignedIn();
+
+  return (
+    <Link
+      href={localePath(locale, signedIn ? '/dashboard' : '/login')}
+      className={buttonVariants({ variant: 'primary', size: 'sm' })}
+    >
+      {signedIn ? t.dashboard : t.logIn}
+    </Link>
   );
 }

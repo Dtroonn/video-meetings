@@ -1,1 +1,1 @@
-export { ServerErrorPage as default, generateMetadata } from '@/_pages/server-error';
+export { ServerErrorPage as default, generateMetadata } from '@/_pages/error/server';
