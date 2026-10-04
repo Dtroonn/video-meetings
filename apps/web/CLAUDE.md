@@ -86,5 +86,6 @@ The code follows **Feature-Sliced Design** (FSD v2.1, see the `feature-sliced-de
 A UI change isn't done when lint and types pass; it must also be **checked visually** and **reviewed with the `ui-ux-pro-max` skill**.
 
 - **Look at it in a browser** (the Playwright MCP server from the root `.mcp.json`) on the running dev server: take screenshots and read them, don't rely on the code alone. Cover every state the change touches (default, hover, keyboard focus, invalid, disabled, loading) at desktop (1280px) and mobile (375px) widths.
+- **Save screenshots in `.playwright-mcp/`** (repo root): pass a `filename` like `.playwright-mcp/register-mobile.png` to `browser_take_screenshot`. The folder is gitignored and in `.prettierignore`, so nothing lands in the working tree or a commit; never save screenshots elsewhere in the repo.
 - **Review it with `ui-ux-pro-max`** against its rules, accessibility first: text contrast ≥ 4.5:1 and field/control boundaries ≥ 3:1 (measure computed colours, don't eyeball them), visible focus, labels and errors linked to their fields, heading order, touch target size, no horizontal scroll.
 - Fix what the review finds, or report it if the fix is out of scope (e.g. a theme-wide change), then re-check.

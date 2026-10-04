@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { apiPost } from '@/shared/api';
 import { REFRESH_TOKEN_COOKIE, clearSessionCookies } from '@/shared/auth';
-import { DEFAULT_LOCALE, isLocale, localePath } from '@/shared/i18n';
+import { Locale, localePath } from '@/shared/i18n';
 
 /**
  * Ends the session: `POST /auth/logout` revokes the refresh token, then the session cookies are
@@ -15,7 +15,7 @@ import { DEFAULT_LOCALE, isLocale, localePath } from '@/shared/i18n';
  * The cookies are cleared even when the api fails: the user asked to be signed out of this
  * browser, and an unrevoked refresh token just expires on its own.
  */
-export async function logout(locale: string): Promise<never> {
+export async function logout(locale: Locale): Promise<never> {
   const cookieStore = await cookies();
   const refreshToken = cookieStore.get(REFRESH_TOKEN_COOKIE)?.value;
   if (refreshToken) {
@@ -24,6 +24,5 @@ export async function logout(locale: string): Promise<never> {
   }
 
   clearSessionCookies(cookieStore);
-  // The argument comes from the client, so it's checked like any other input.
-  redirect(localePath(isLocale(locale) ? locale : DEFAULT_LOCALE, '/login'));
+  redirect(localePath(locale, '/login'));
 }
