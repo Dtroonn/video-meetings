@@ -9,6 +9,7 @@ Turborepo monorepo (pnpm workspaces) for a video meetings product.
 - `packages/contracts` — request/response types and validation limits shared by api and web (`@video-meetings/contracts`, built with tsup). See `packages/contracts/CLAUDE.md`.
 - `packages/eslint-config` — shared ESLint flat configs: `@video-meetings/eslint-config/{base,next,nest}`.
 - `packages/typescript-config` — shared tsconfig presets: `base.json`, `library.json`, `nextjs.json`, `nestjs.json`.
+- `docs/prds/` — product requirements documents, one `<feature-name>.md` per feature, written with the `/prd <feature name>` command (`.claude/skills/prd`; manual only, Claude doesn't invoke it on its own). The folder is created with the first PRD.
 - `compose.yaml` — local dev services (Docker Compose): PostgreSQL 18 (`postgres:18-alpine`).
 
 ## Commands (run from the repo root)
