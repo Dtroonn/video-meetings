@@ -1,1 +1,1 @@
-export { RegisterPage, metadata } from './ui/register-page';
+export { RegisterPage, generateMetadata } from './ui/register-page';

@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { ACCESS_TOKEN_COOKIE } from '@video-meetings/contracts';
 import type { Request } from 'express';
 import type { AuthenticatedUser } from '../auth.types';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
@@ -15,8 +16,14 @@ export interface AuthenticatedRequest extends Request {
 }
 
 /**
- * Registered globally (`APP_GUARD` in `AuthModule`), so every route requires a valid
- * `Authorization: Bearer <accessToken>` header unless it's marked `@Public()`.
+ * Registered globally (`APP_GUARD` in `AuthModule`), so every route requires a valid access token
+ * unless it's marked `@Public()`. The token comes from the `Authorization: Bearer <accessToken>`
+ * header, or, without one, from the web app's httpOnly `access_token` cookie: browser code can't
+ * read that cookie to build the header, but the browser sends it with same-origin `/api/*`
+ * requests. The header wins when both are present.
+ *
+ * Accepting a cookie opens the door to CSRF; it stays closed because the cookie is `SameSite=Lax`
+ * (not sent with cross-site `POST`/`fetch`) and no endpoint changes state on `GET`. Keep it that way.
  */
 @Injectable()
 export class AccessTokenGuard implements CanActivate {
@@ -35,8 +42,8 @@ export class AccessTokenGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const [type, token] = request.headers.authorization?.split(' ') ?? [];
-    if (type !== 'Bearer' || !token) {
+    const token = bearerToken(request) ?? cookieToken(request);
+    if (!token) {
       throw new UnauthorizedException('Missing access token');
     }
 
@@ -44,4 +51,17 @@ export class AccessTokenGuard implements CanActivate {
     request.user = { id: sub, email };
     return true;
   }
+}
+
+function bearerToken(request: Request): string | undefined {
+  const [type, token] = request.headers.authorization?.split(' ') ?? [];
+  return type === 'Bearer' && token ? token : undefined;
+}
+
+/** `request.cookies` is filled by the `cookie-parser` middleware registered in `AppModule`. */
+function cookieToken(request: Request): string | undefined {
+  // Express types `cookies` as `any`.
+  const cookies = request.cookies as Record<string, unknown> | undefined;
+  const token = cookies?.[ACCESS_TOKEN_COOKIE];
+  return typeof token === 'string' && token ? token : undefined;
 }

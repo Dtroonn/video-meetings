@@ -14,6 +14,11 @@ export interface RefreshTokensRequest {
   refreshToken: string;
 }
 
+/** Ends the session the refresh token belongs to. */
+export interface LogoutRequest {
+  refreshToken: string;
+}
+
 /** An access/refresh token pair. */
 export interface TokensResponse {
   readonly accessToken: string;

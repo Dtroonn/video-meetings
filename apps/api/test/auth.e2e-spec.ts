@@ -85,6 +85,7 @@ describe('Auth (e2e)', () => {
   const register = (body: object) => request(app.getHttpServer()).post('/auth/register').send(body);
   const login = (body: object) => request(app.getHttpServer()).post('/auth/login').send(body);
   const refresh = (body: object) => request(app.getHttpServer()).post('/auth/refresh').send(body);
+  const logout = (body: object) => request(app.getHttpServer()).post('/auth/logout').send(body);
 
   const registerUser = async (email = uniqueEmail()) => {
     const res = await register({ email, password: PASSWORD }).expect(201);
@@ -289,6 +290,99 @@ describe('Auth (e2e)', () => {
       ['refreshToken is not a string', { refreshToken: 42 }],
     ])('returns 400 when %s', async (_case, body) => {
       await refresh(body).expect(400);
+    });
+  });
+
+  describe('POST /auth/logout', () => {
+    it('returns 204 and the refresh token stops working', async () => {
+      const { refreshToken } = await registerUser();
+
+      await logout({ refreshToken }).expect(204);
+
+      await refresh({ refreshToken }).expect(401);
+    });
+
+    it('works without an access token', async () => {
+      const { refreshToken } = await registerUser();
+
+      await logout({ refreshToken }).expect(204);
+    });
+
+    it('keeps refresh tokens of other sessions valid', async () => {
+      const { user, refreshToken: registerSession } = await registerUser();
+      const loginRes = await login({ email: user.email, password: PASSWORD }).expect(200);
+      const loginSession = expectAuthResponse(loginRes.body, user.email).refreshToken;
+
+      await logout({ refreshToken: loginSession }).expect(204);
+
+      await refresh({ refreshToken: registerSession }).expect(200);
+    });
+
+    it('is idempotent: logging out with an already used refresh token returns 204', async () => {
+      const { refreshToken } = await registerUser();
+      await logout({ refreshToken }).expect(204);
+
+      await logout({ refreshToken }).expect(204);
+    });
+
+    it('returns 401 for a malformed refresh token', async () => {
+      await logout({ refreshToken: 'not-a-token' }).expect(401);
+    });
+
+    it('returns 401 when an access token is used as a refresh token', async () => {
+      const { accessToken } = await registerUser();
+
+      await logout({ refreshToken: accessToken }).expect(401);
+    });
+
+    it.each([
+      ['refreshToken is missing', {}],
+      ['refreshToken is empty', { refreshToken: '' }],
+    ])('returns 400 when %s', async (_case, body) => {
+      await logout(body).expect(400);
+    });
+  });
+
+  describe('GET /users/me', () => {
+    const me = () => request(app.getHttpServer()).get('/users/me');
+
+    it('returns the user of a bearer access token', async () => {
+      const { user, accessToken } = await registerUser();
+
+      const res = await me().auth(accessToken, { type: 'bearer' }).expect(200);
+
+      expect(res.body).toEqual(user);
+      expectNoPassword(res.body as Record<string, unknown>);
+    });
+
+    it('accepts the access token from the access_token cookie', async () => {
+      const { user, accessToken } = await registerUser();
+
+      const res = await me().set('Cookie', `locale=en; access_token=${accessToken}`).expect(200);
+
+      expect(res.body).toEqual(user);
+    });
+
+    it('prefers the Authorization header over the cookie', async () => {
+      const header = await registerUser();
+      const cookie = await registerUser();
+
+      const res = await me()
+        .auth(header.accessToken, { type: 'bearer' })
+        .set('Cookie', `access_token=${cookie.accessToken}`)
+        .expect(200);
+
+      expect(res.body).toEqual(header.user);
+    });
+
+    it('returns 401 without an access token', async () => {
+      await me().expect(401);
+    });
+
+    it('returns 401 for a refresh token in the cookie', async () => {
+      const { refreshToken } = await registerUser();
+
+      await me().set('Cookie', `access_token=${refreshToken}`).expect(401);
     });
   });
 });

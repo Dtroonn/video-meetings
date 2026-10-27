@@ -142,7 +142,7 @@ describe('Meetings (e2e)', () => {
 
       const res = await getMeeting(created.id, owner.accessToken).expect(200);
 
-      expect(res.body).toEqual(created);
+      expect(res.body).toEqual({ ...created, participantUsers: [] });
     });
 
     it('gives every meeting its own id', async () => {
@@ -313,7 +313,10 @@ describe('Meetings (e2e)', () => {
 
       const res = await getMeeting(meeting.id, owner.accessToken).expect(200);
 
-      expect(res.body).toEqual(meeting);
+      expect(res.body).toEqual({
+        ...meeting,
+        participantUsers: [{ id: participant.id, email: participant.email }],
+      });
     });
 
     it('returns the meeting to a participant', async () => {
@@ -323,7 +326,36 @@ describe('Meetings (e2e)', () => {
 
       const res = await getMeeting(meeting.id, participant.accessToken).expect(200);
 
-      expect(res.body).toEqual(meeting);
+      expect(res.body).toEqual({
+        ...meeting,
+        participantUsers: [{ id: participant.id, email: participant.email }],
+      });
+    });
+
+    it("returns participants' emails in the order of their ids", async () => {
+      const owner = await registerUser();
+      const participants = await Promise.all([registerUser(), registerUser(), registerUser()]);
+      const meeting = await createMeetingFor(owner, {
+        participants: participants.map(({ id }) => id),
+      });
+
+      const res = await getMeeting(meeting.id, owner.accessToken).expect(200);
+
+      const body = res.body as Meeting & { participantUsers: { id: string; email: string }[] };
+      expect(body.participantUsers.map(({ id }) => id)).toEqual(body.participants);
+      expect(body.participantUsers).toEqual(
+        expect.arrayContaining(participants.map(({ id, email }) => ({ id, email }))),
+      );
+      expect(body.participantUsers).toHaveLength(participants.length);
+    });
+
+    it('returns no participant users for a meeting without participants', async () => {
+      const owner = await registerUser();
+      const meeting = await createMeetingFor(owner);
+
+      const res = await getMeeting(meeting.id, owner.accessToken).expect(200);
+
+      expect(res.body).toEqual({ ...meeting, participantUsers: [] });
     });
 
     it('returns 404 when the meeting does not exist', async () => {

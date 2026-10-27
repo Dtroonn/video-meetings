@@ -6,13 +6,15 @@ import { useState, type Ref } from 'react';
 
 interface PasswordInputProps {
   ref?: Ref<HTMLInputElement>;
+  /** Accessible names of the toggle button, already translated. */
+  labels: { show: string; hide: string };
 }
 
 /**
  * A password input for use inside a `TextField`, with a button that shows or hides the value.
  * The icon shows the action the button performs (eye = show), and the label says it in words.
  */
-export function PasswordInput({ ref }: PasswordInputProps) {
+export function PasswordInput({ ref, labels }: PasswordInputProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
@@ -23,7 +25,7 @@ export function PasswordInput({ ref }: PasswordInputProps) {
           isIconOnly
           size="sm"
           variant="ghost"
-          aria-label={isVisible ? 'Hide password' : 'Show password'}
+          aria-label={isVisible ? labels.hide : labels.show}
           onPress={() => setIsVisible((visible) => !visible)}
         >
           {isVisible ? (
