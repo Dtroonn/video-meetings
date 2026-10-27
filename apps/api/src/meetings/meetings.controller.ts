@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/commo
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type { AuthenticatedUser } from '@/auth/auth.types';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import { GetUsersByIdsQuery } from '@/users/queries/get-users-by-ids/get-users-by-ids.query';
 import { CreateMeetingCommand } from './commands/create-meeting/create-meeting.command';
 import { CreateMeetingRequestDto } from './dto/create-meeting-request.dto';
 import { CreateMeetingResponseDto } from './dto/create-meeting-response.dto';
@@ -41,6 +42,8 @@ export class MeetingsController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<GetMeetingResponseDto> {
     const meeting = await this.queryBus.execute(new GetMeetingByIdQuery(id, user.id));
-    return new GetMeetingResponseDto(meeting);
+    // Participants are deleted with their users (cascade), so every id resolves to a user.
+    const participants = await this.queryBus.execute(new GetUsersByIdsQuery(meeting.participants));
+    return new GetMeetingResponseDto(meeting, participants);
   }
 }

@@ -17,3 +17,14 @@ export interface MeetingResponse {
   readonly createdAt: string;
   readonly updatedAt: string;
 }
+
+export interface MeetingParticipantResponse {
+  readonly id: string;
+  readonly email: string;
+}
+
+/** `GET /meetings/:id`: a meeting plus its participants' emails, for the meeting page. */
+export interface GetMeetingResponse extends MeetingResponse {
+  /** The users in `participants`, in the same order. */
+  readonly participantUsers: MeetingParticipantResponse[];
+}

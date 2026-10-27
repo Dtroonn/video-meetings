@@ -34,5 +34,8 @@ coverage
 # generated code
 apps/api/src/generated
 
+# files uploaded to the local api (`UPLOADS_DIR`)
+apps/api/uploads
+
 # Playwright MCP snapshots/screenshots
 .playwright-mcp

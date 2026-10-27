@@ -7,16 +7,20 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env.validation';
+import { MeetingFilesModule } from './meeting-files/meeting-files.module';
 import { MeetingsModule } from './meetings/meetings.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, cache: true, validate: validateEnv }),
     CqrsModule.forRoot(),
     PrismaModule,
+    StorageModule,
     AuthModule,
     MeetingsModule,
+    MeetingFilesModule,
   ],
   controllers: [AppController],
   providers: [

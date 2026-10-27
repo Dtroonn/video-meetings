@@ -25,6 +25,15 @@ export class EnvironmentVariables {
   @IsPositive()
   @Type(() => Number)
   JWT_REFRESH_TTL: number = 7 * 24 * 60 * 60;
+
+  /**
+   * Where uploaded files are stored; a relative path resolves against the api's working directory
+   * (`apps/api` under the pnpm scripts). Keep it outside `dist/` so builds don't wipe it; in
+   * production point it at a persistent volume.
+   */
+  @IsString()
+  @IsNotEmpty()
+  UPLOADS_DIR: string = 'uploads';
 }
 
 /** Validates `process.env` at startup, so a missing or malformed variable fails fast. */

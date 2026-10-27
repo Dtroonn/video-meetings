@@ -8,14 +8,15 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(uuid(7)) @db.Uuid
-  email         String         @unique
-  passwordHash  String         @map("password_hash")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
+  id            String               @id @default(uuid(7)) @db.Uuid
+  email         String               @unique
+  passwordHash  String               @map("password_hash")
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
   refreshTokens RefreshToken[]
   ownedMeetings Meeting[]
   meetings      MeetingParticipant[]
+  uploadedFiles MeetingFile[]
 
   @@map("users")
 }
@@ -40,6 +41,7 @@ model Meeting {
   ownerId      String               @map("owner_id") @db.Uuid
   owner        User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   participants MeetingParticipant[]
+  files        MeetingFile[]
   createdAt    DateTime             @default(now()) @map("created_at")
   updatedAt    DateTime             @updatedAt @map("updated_at")
 
@@ -58,4 +60,41 @@ model MeetingParticipant {
   @@id([meetingId, userId])
   @@index([userId])
   @@map("meeting_participants")
+}
+
+enum MeetingFileStatus {
+  PENDING
+  COMPLETED
+
+  @@map("meeting_file_status")
+}
+
+// A file uploaded to a meeting. The row is created when an upload starts (PENDING, data in the
+// storage's temp folder) and becomes COMPLETED once all bytes arrived and the file was moved to
+// `storage_key`; only completed files are listed. The uploader is linked to `users`, not to
+// `meeting_participants`, so the file stays when its uploader stops being a participant; deleting
+// a user who uploaded files is restricted, as that would silently drop other members' files.
+model MeetingFile {
+  id            String            @id @default(uuid(7)) @db.Uuid
+  meetingId     String            @map("meeting_id") @db.Uuid
+  meeting       Meeting           @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  uploaderId    String            @map("uploader_id") @db.Uuid
+  uploader      User              @relation(fields: [uploaderId], references: [id], onDelete: Restrict)
+  /// The original file name, as the client sent it; never used as a path on disk.
+  name          String
+  /// The MIME type the client reported; may be empty.
+  mimeType      String            @map("mime_type")
+  /// Declared size in bytes.
+  size          BigInt
+  /// Path relative to `UPLOADS_DIR`; set when the upload completes.
+  storageKey    String?           @map("storage_key")
+  status        MeetingFileStatus @default(PENDING)
+  bytesReceived BigInt            @default(0) @map("bytes_received")
+  completedAt   DateTime?         @map("completed_at")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  @@index([meetingId, status, completedAt])
+  @@index([uploaderId])
+  @@map("meeting_files")
 }
