@@ -10,6 +10,8 @@ Turborepo monorepo (pnpm workspaces) for a video meetings product.
 - `packages/eslint-config` — shared ESLint flat configs: `@video-meetings/eslint-config/{base,next,nest}`.
 - `packages/typescript-config` — shared tsconfig presets: `base.json`, `library.json`, `nextjs.json`, `nestjs.json`.
 - `docs/prds/` — product requirements documents, one `<feature-name>.md` per feature, written with the `/prd <feature name>` command (`.claude/skills/prd`; manual only, Claude doesn't invoke it on its own). The folder is created with the first PRD.
+- `docs/plans/` — implementation plans, one `<feature-name>.md` per PRD (same kebab-case name), splitting it into independent phases; written with the `/plan-phases <PRD path or feature name>` command (`.claude/skills/plan-phases`; manual only, like `/prd`). The folder is created with the first plan. `/issues <plan path or feature name>` (`.claude/skills/issues`; manual only) turns a plan into GitHub milestones (one per phase) and issues (one per task) with the `gh` CLI.
+- `docs/researches/` — technical research for choosing the approach to implement a plan, one `<feature-name>.md` per plan (same kebab-case name): decisions with reasons, risks and open questions.
 - `compose.yaml` — local dev services (Docker Compose): PostgreSQL 18 (`postgres:18-alpine`).
 
 ## Commands (run from the repo root)

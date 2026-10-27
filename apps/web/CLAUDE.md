@@ -42,6 +42,8 @@ The code follows **Feature-Sliced Design** (FSD v2.1, see the `feature-sliced-de
 
 ## Things to know
 
+- **File uploads:** meeting file upload follows [`docs/researches/meeting-file-upload.md`](../../docs/researches/meeting-file-upload.md) (chunked upload to local disk); read it before touching that feature.
+
 - **FSD rules:**
   - Layers import only from layers below: `_app` → `_pages` → (`features` →) `entities` → `shared`. Slices on the same layer never import each other.
   - Import a slice only through its `index.ts` (`@/_pages/register`, not `@/_pages/register/ui/...`). Inside a slice, use relative imports.
