@@ -2,13 +2,28 @@
 
 import { Xmark } from '@gravity-ui/icons';
 import { Button, Label, ProgressBar } from '@heroui/react';
+import { MEETING_FILE_MAX_SIZE } from '@video-meetings/contracts';
 import { formatMessage, type Dictionary, type Locale } from '@/shared/i18n';
-import { formatFileSize } from '../model/meeting-file';
-import { useMeetingFilesStore, type Upload } from '../model/meeting-files-store';
+import { ALLOWED_FILE_TYPES_LABEL, formatFileSize } from '../model/meeting-file';
+import { useMeetingFilesStore, type Upload, type UploadError } from '../model/meeting-files-store';
 
 type UploadsTexts = Dictionary['meeting']['page']['uploads'];
 
-/** The files being uploaded, each with its own progress bar. Nothing when there are none. */
+function errorMessage(error: UploadError | undefined, locale: Locale, t: UploadsTexts): string {
+  switch (error) {
+    case 'type':
+      return formatMessage(t.rejectedType, { types: ALLOWED_FILE_TYPES_LABEL });
+    case 'size':
+      return formatMessage(t.rejectedSize, { max: formatFileSize(MEETING_FILE_MAX_SIZE, locale) });
+    default:
+      return t.failed;
+  }
+}
+
+/**
+ * The files being uploaded, each with its own progress bar, and the ones that failed or were
+ * rejected before uploading, each with its reason. Nothing when there are none.
+ */
 export function UploadList({ locale, t }: { locale: Locale; t: UploadsTexts }) {
   const uploads = useMeetingFilesStore((state) => state.uploads);
 
@@ -28,7 +43,7 @@ export function UploadList({ locale, t }: { locale: Locale; t: UploadsTexts }) {
 
 function UploadItem({ upload, locale, t }: { upload: Upload; locale: Locale; t: UploadsTexts }) {
   const dismiss = useMeetingFilesStore((state) => state.dismiss);
-  const { name, size, loaded, status } = upload;
+  const { name, size, loaded, status, error } = upload;
 
   if (status === 'error') {
     return (
@@ -38,7 +53,7 @@ function UploadItem({ upload, locale, t }: { upload: Upload; locale: Locale; t: 
             {name}
           </p>
           <p role="alert" className="text-danger text-sm">
-            {t.failed}
+            {errorMessage(error, locale, t)}
           </p>
         </div>
         <Button

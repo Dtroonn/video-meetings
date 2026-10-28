@@ -1,12 +1,13 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { readFile, rm } from 'node:fs/promises';
+import { access, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { UPLOAD_CHUNK_SIZE } from '@video-meetings/contracts';
+import { MEETING_FILE_MAX_SIZE, UPLOAD_CHUNK_SIZE } from '@video-meetings/contracts';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 import { AppModule } from '@/app.module';
+import { PrismaService } from '@/prisma/prisma.service';
 
 interface TestUser {
   id: string;
@@ -47,6 +48,22 @@ const UPLOADS_DIR = process.env.UPLOADS_DIR as string;
 
 // Every test registers its own users, so tests don't depend on each other or on a clean database.
 const uniqueEmail = () => `user-${randomUUID()}@example.com`;
+
+// Random bytes could start with some format's signature (`MZ` of an `.exe` is 2 bytes) and be
+// refused as not matching the file's extension, so test content starts with plain text.
+const CONTENT_PREFIX = Buffer.from('video-meetings e2e test file\n');
+
+/** `size` bytes of random content that `file-type` doesn't recognize as any format. */
+const randomContent = (size: number) =>
+  size <= CONTENT_PREFIX.length
+    ? CONTENT_PREFIX.subarray(0, size)
+    : Buffer.concat([CONTENT_PREFIX, randomBytes(size - CONTENT_PREFIX.length)]);
+
+const exists = (file: string) =>
+  access(file).then(
+    () => true,
+    () => false,
+  );
 
 const createApp = async (): Promise<INestApplication<App>> => {
   const moduleFixture = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -136,8 +153,37 @@ describe('Meeting files (e2e)', () => {
     return res.body as MeetingFile;
   };
 
-  const storedFile = (file: MeetingFile) =>
-    readFile(path.join(UPLOADS_DIR, 'meetings', file.meetingId, file.id));
+  /** Sends a chunked upload without completing it, so it can be completed (or not) later. */
+  const sendFile = async (user: TestUser, body: StartUploadBody, content: Buffer) => {
+    const upload = await startUploadFor(user, { ...body, size: content.length });
+    await sendChunk(upload.id, 0, content, user.accessToken).expect(200);
+    return upload;
+  };
+
+  /** Requests a file's download, collecting the body as a buffer whatever its content type. */
+  const downloadFile = (id: string, accessToken?: string) => {
+    const req = server()
+      .get(`/meeting/files/${id}/download`)
+      .buffer(true)
+      .parse((res, callback) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => callback(null, Buffer.concat(chunks)));
+      });
+    return accessToken ? req.auth(accessToken, { type: 'bearer' }) : req;
+  };
+
+  const deleteFile = (id: string, accessToken?: string) => {
+    const req = server().delete(`/meeting/files/${id}`);
+    return accessToken ? req.auth(accessToken, { type: 'bearer' }) : req;
+  };
+
+  const storedPath = (file: Pick<MeetingFile, 'id' | 'meetingId'>) =>
+    path.join(UPLOADS_DIR, 'meetings', file.meetingId, file.id);
+
+  const storedFile = (file: MeetingFile) => readFile(storedPath(file));
+
+  const tempPath = (uploadId: string) => path.join(UPLOADS_DIR, 'tmp', `${uploadId}.part`);
 
   beforeAll(async () => {
     app = await createApp();
@@ -152,7 +198,7 @@ describe('Meeting files (e2e)', () => {
     it('stores a file uploaded in several chunks byte for byte', async () => {
       const owner = await registerUser();
       const meetingId = await createMeeting(owner);
-      const content = randomBytes(2 * UPLOAD_CHUNK_SIZE + 1234);
+      const content = randomContent(2 * UPLOAD_CHUNK_SIZE + 1234);
 
       const file = await uploadFile(owner, meetingId, content, {
         name: 'Standup recording.mp4',
@@ -176,7 +222,7 @@ describe('Meeting files (e2e)', () => {
       const participant = await registerUser();
       const meetingId = await createMeeting(owner, [participant]);
 
-      const file = await uploadFile(participant, meetingId, randomBytes(100));
+      const file = await uploadFile(participant, meetingId, randomContent(100));
 
       expect(file.uploader).toEqual({ id: participant.id, email: participant.email });
     });
@@ -326,17 +372,99 @@ describe('Meeting files (e2e)', () => {
     });
   });
 
+  describe('file limits', () => {
+    it('returns 400 for a file one byte over the size limit and accepts one at the limit', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+
+      const over = await startUpload(
+        uploadBody(meetingId, { name: 'recording.mp4', size: MEETING_FILE_MAX_SIZE + 1 }),
+        owner.accessToken,
+      ).expect(400);
+      await startUpload(
+        uploadBody(meetingId, { name: 'recording.mp4', size: MEETING_FILE_MAX_SIZE }),
+        owner.accessToken,
+      ).expect(201);
+
+      expect((over.body as { message: string[] }).message).toEqual([
+        expect.stringContaining('100 MB') as unknown,
+      ]);
+    });
+
+    it.each(['setup.exe', 'page.html', 'image.svg', 'archive.zip', 'README', 'notes.txt.exe'])(
+      'returns 400 for a file named %s',
+      async (name) => {
+        const owner = await registerUser();
+        const meetingId = await createMeeting(owner);
+
+        const res = await startUpload(uploadBody(meetingId, { name }), owner.accessToken).expect(
+          400,
+        );
+
+        expect((res.body as { message: string[] }).message).toEqual([
+          expect.stringContaining('Allowed file types: mp4') as unknown,
+        ]);
+      },
+    );
+
+    it('accepts an allowed extension in any case', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+
+      const file = await uploadFile(owner, meetingId, randomContent(10), { name: 'Notes.MD' });
+
+      expect(file.name).toBe('Notes.MD');
+    });
+
+    it('stores the type of the extension, not the one the client reports', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+
+      const upload = await startUploadFor(
+        owner,
+        uploadBody(meetingId, { name: 'call.mkv', type: 'application/x-msdownload' }),
+      );
+
+      expect(upload.type).toBe('video/x-matroska');
+    });
+
+    it('returns 400 and deletes the upload when its content is another type', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      // An `.exe` starts with `MZ`; renaming it doesn't make it a picture.
+      const exe = Buffer.concat([Buffer.from('MZ'), randomBytes(200)]);
+      const upload = await sendFile(owner, uploadBody(meetingId, { name: 'photo.png' }), exe);
+
+      await completeUpload(upload.id, owner.accessToken).expect(400);
+
+      await completeUpload(upload.id, owner.accessToken).expect(404);
+      expect(await exists(tempPath(upload.id))).toBe(false);
+      const res = await listFiles(meetingId, owner.accessToken).expect(200);
+      expect(res.body).toEqual([]);
+    });
+
+    it('accepts content of the declared type', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const pdf = Buffer.concat([Buffer.from('%PDF-1.7\n'), randomBytes(100)]);
+
+      const file = await uploadFile(owner, meetingId, pdf, { name: 'slides.pdf' });
+
+      expect(file.type).toBe('application/pdf');
+    });
+  });
+
   describe('listing files', () => {
     it('shows files uploaded by the owner and a participant to every member', async () => {
       const owner = await registerUser();
       const participant = await registerUser();
       const meetingId = await createMeeting(owner, [participant]);
 
-      const ownerFile = await uploadFile(owner, meetingId, randomBytes(300), {
+      const ownerFile = await uploadFile(owner, meetingId, randomContent(300), {
         name: 'agenda.pdf',
         type: 'application/pdf',
       });
-      const participantFile = await uploadFile(participant, meetingId, randomBytes(200), {
+      const participantFile = await uploadFile(participant, meetingId, randomContent(200), {
         name: 'recording.webm',
         type: 'video/webm',
       });
@@ -344,14 +472,14 @@ describe('Meeting files (e2e)', () => {
       const forOwner = await listFiles(meetingId, owner.accessToken).expect(200);
       const forParticipant = await listFiles(meetingId, participant.accessToken).expect(200);
 
-      expect(forOwner.body).toEqual([ownerFile, participantFile]);
-      expect(forParticipant.body).toEqual([ownerFile, participantFile]);
+      expect(forOwner.body).toEqual([participantFile, ownerFile]);
+      expect(forParticipant.body).toEqual([participantFile, ownerFile]);
     });
 
     it('lists the same file uploaded twice as two separate files', async () => {
       const owner = await registerUser();
       const meetingId = await createMeeting(owner);
-      const content = randomBytes(500);
+      const content = randomContent(500);
 
       const first = await uploadFile(owner, meetingId, content, { name: 'same.mp4' });
       const second = await uploadFile(owner, meetingId, content, { name: 'same.mp4' });
@@ -359,7 +487,7 @@ describe('Meeting files (e2e)', () => {
       const res = await listFiles(meetingId, owner.accessToken).expect(200);
 
       expect(second.id).not.toBe(first.id);
-      expect(res.body).toEqual([first, second]);
+      expect(res.body).toEqual([second, first]);
       expect((await storedFile(first)).equals(content)).toBe(true);
       expect((await storedFile(second)).equals(content)).toBe(true);
     });
@@ -384,7 +512,7 @@ describe('Meeting files (e2e)', () => {
       const owner = await registerUser();
       const meetingId = await createMeeting(owner);
       const otherMeetingId = await createMeeting(owner);
-      await uploadFile(owner, otherMeetingId, randomBytes(10));
+      await uploadFile(owner, otherMeetingId, randomContent(10));
 
       const res = await listFiles(meetingId, owner.accessToken).expect(200);
 
@@ -408,7 +536,7 @@ describe('Meeting files (e2e)', () => {
       const owner = await registerUser();
       const stranger = await registerUser();
       const meetingId = await createMeeting(owner);
-      await uploadFile(owner, meetingId, randomBytes(10));
+      await uploadFile(owner, meetingId, randomContent(10));
 
       const foreign = await listFiles(meetingId, stranger.accessToken).expect(404);
       const missing = await listFiles(randomUUID(), stranger.accessToken).expect(404);
@@ -462,11 +590,199 @@ describe('Meeting files (e2e)', () => {
     await completeUpload(upload.id, owner.accessToken).expect(404);
   });
 
-  it('still lists uploaded files after the api restarts', async () => {
+  describe('downloading a file', () => {
+    it('gives the uploaded bytes under the original name, as an attachment', async () => {
+      const owner = await registerUser();
+      const participant = await registerUser();
+      const meetingId = await createMeeting(owner, [participant]);
+      const content = randomContent(UPLOAD_CHUNK_SIZE + 4321);
+      const name = 'Запись встречи "итоги".mp4';
+      const file = await uploadFile(owner, meetingId, content, { name });
+
+      const res = await downloadFile(file.id, participant.accessToken).expect(200);
+
+      expect((res.body as Buffer).equals(content)).toBe(true);
+      expect(res.headers['content-length']).toBe(String(content.length));
+      expect(res.headers['content-disposition']).toMatch(/^attachment;/);
+      expect(res.headers['content-disposition']).toContain(
+        `filename*=UTF-8''${encodeURIComponent(name)}`,
+      );
+    });
+
+    it('never lets the browser render or sniff the file', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const html = Buffer.from('<html><script>alert(document.cookie)</script></html>');
+      const file = await uploadFile(owner, meetingId, html, { name: 'page.txt' });
+
+      const res = await downloadFile(file.id, owner.accessToken).expect(200);
+
+      expect(res.headers['content-type']).toBe('application/octet-stream');
+      expect(res.headers['x-content-type-options']).toBe('nosniff');
+      expect(res.headers['content-security-policy']).toContain('sandbox');
+      expect(res.headers['cache-control']).toContain('no-store');
+    });
+
+    it('gives each copy of the same file separately', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const content = randomContent(300);
+      const first = await uploadFile(owner, meetingId, content, { name: 'same.mp4' });
+      const second = await uploadFile(owner, meetingId, content, { name: 'same.mp4' });
+
+      const firstRes = await downloadFile(first.id, owner.accessToken).expect(200);
+      const secondRes = await downloadFile(second.id, owner.accessToken).expect(200);
+
+      expect((firstRes.body as Buffer).equals(content)).toBe(true);
+      expect((secondRes.body as Buffer).equals(content)).toBe(true);
+    });
+
+    it('returns 404 for an upload that has not been completed', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const upload = await sendFile(owner, uploadBody(meetingId), Buffer.from('hello'));
+
+      await downloadFile(upload.id, owner.accessToken).expect(404);
+    });
+
+    it('returns 400 for an id that is not a UUID and 401 without an access token', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const file = await uploadFile(owner, meetingId, randomContent(10));
+
+      await downloadFile('nope', owner.accessToken).expect(400);
+      await downloadFile(file.id).expect(401);
+    });
+  });
+
+  describe('deleting a file', () => {
+    it('lets a participant delete their own file, for everyone', async () => {
+      const owner = await registerUser();
+      const participant = await registerUser();
+      const meetingId = await createMeeting(owner, [participant]);
+      const file = await uploadFile(participant, meetingId, randomContent(100));
+
+      await deleteFile(file.id, participant.accessToken).expect(204);
+
+      const res = await listFiles(meetingId, owner.accessToken).expect(200);
+      expect(res.body).toEqual([]);
+      await downloadFile(file.id, owner.accessToken).expect(404);
+      expect(await exists(storedPath(file))).toBe(false);
+    });
+
+    it("lets the owner delete a participant's file", async () => {
+      const owner = await registerUser();
+      const participant = await registerUser();
+      const meetingId = await createMeeting(owner, [participant]);
+      const file = await uploadFile(participant, meetingId, randomContent(100));
+
+      await deleteFile(file.id, owner.accessToken).expect(204);
+
+      const res = await listFiles(meetingId, participant.accessToken).expect(200);
+      expect(res.body).toEqual([]);
+    });
+
+    it("returns 403 when a participant deletes another member's file", async () => {
+      const owner = await registerUser();
+      const participant = await registerUser();
+      const other = await registerUser();
+      const meetingId = await createMeeting(owner, [participant, other]);
+      const ownerFile = await uploadFile(owner, meetingId, randomContent(100));
+      const otherFile = await uploadFile(other, meetingId, randomContent(100));
+
+      await deleteFile(ownerFile.id, participant.accessToken).expect(403);
+      await deleteFile(otherFile.id, participant.accessToken).expect(403);
+
+      const res = await listFiles(meetingId, owner.accessToken).expect(200);
+      expect(res.body).toEqual([otherFile, ownerFile]);
+      expect(await exists(storedPath(ownerFile))).toBe(true);
+    });
+
+    it('deletes one copy of the same file and keeps the other', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const content = randomContent(300);
+      const first = await uploadFile(owner, meetingId, content, { name: 'same.mp4' });
+      const second = await uploadFile(owner, meetingId, content, { name: 'same.mp4' });
+
+      await deleteFile(first.id, owner.accessToken).expect(204);
+
+      const res = await listFiles(meetingId, owner.accessToken).expect(200);
+      expect(res.body).toEqual([second]);
+      const download = await downloadFile(second.id, owner.accessToken).expect(200);
+      expect((download.body as Buffer).equals(content)).toBe(true);
+    });
+
+    it('returns 404 for a file already deleted or an upload not completed', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const file = await uploadFile(owner, meetingId, randomContent(10));
+      const upload = await sendFile(owner, uploadBody(meetingId), Buffer.from('hello'));
+      await deleteFile(file.id, owner.accessToken).expect(204);
+
+      await deleteFile(file.id, owner.accessToken).expect(404);
+      await deleteFile(upload.id, owner.accessToken).expect(404);
+    });
+
+    it('returns 400 for an id that is not a UUID and 401 without an access token', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const file = await uploadFile(owner, meetingId, randomContent(10));
+
+      await deleteFile('nope', owner.accessToken).expect(400);
+      await deleteFile(file.id).expect(401);
+    });
+  });
+
+  describe('non-members downloading and deleting', () => {
+    it('get the same 404 as for a missing file', async () => {
+      const owner = await registerUser();
+      const stranger = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const file = await uploadFile(owner, meetingId, randomContent(10));
+
+      const foreignDownload = await downloadFile(file.id, stranger.accessToken).expect(404);
+      const missingDownload = await downloadFile(randomUUID(), stranger.accessToken).expect(404);
+      const foreignDelete = await deleteFile(file.id, stranger.accessToken).expect(404);
+      const missingDelete = await deleteFile(randomUUID(), stranger.accessToken).expect(404);
+
+      expect((foreignDownload.body as Buffer).equals(missingDownload.body as Buffer)).toBe(true);
+      expect(foreignDelete.body).toEqual(missingDelete.body);
+      const res = await listFiles(meetingId, owner.accessToken).expect(200);
+      expect(res.body).toEqual([file]);
+    });
+  });
+
+  describe('files of a user who is no longer a participant', () => {
+    it('stay listed and downloadable, and only the owner can delete them', async () => {
+      const owner = await registerUser();
+      const former = await registerUser();
+      const participant = await registerUser();
+      const meetingId = await createMeeting(owner, [former, participant]);
+      const content = randomContent(200);
+      const file = await uploadFile(former, meetingId, content);
+
+      // There's no endpoint for removing participants yet, so remove them in the database.
+      await app.get(PrismaService).meetingParticipant.delete({
+        where: { meetingId_userId: { meetingId, userId: former.id } },
+      });
+
+      const res = await listFiles(meetingId, participant.accessToken).expect(200);
+      expect(res.body).toEqual([file]);
+      const download = await downloadFile(file.id, participant.accessToken).expect(200);
+      expect((download.body as Buffer).equals(content)).toBe(true);
+      await downloadFile(file.id, former.accessToken).expect(404);
+      await deleteFile(file.id, former.accessToken).expect(404);
+      await deleteFile(file.id, participant.accessToken).expect(403);
+      await deleteFile(file.id, owner.accessToken).expect(204);
+    });
+  });
+
+  it('still lists and downloads uploaded files after the api restarts', async () => {
     const owner = await registerUser();
     const participant = await registerUser();
     const meetingId = await createMeeting(owner, [participant]);
-    const content = randomBytes(UPLOAD_CHUNK_SIZE + 10);
+    const content = randomContent(UPLOAD_CHUNK_SIZE + 10);
     const file = await uploadFile(participant, meetingId, content);
 
     await app.close();
@@ -474,6 +790,7 @@ describe('Meeting files (e2e)', () => {
 
     const res = await listFiles(meetingId, owner.accessToken).expect(200);
     expect(res.body).toEqual([file]);
-    expect((await storedFile(file)).equals(content)).toBe(true);
+    const download = await downloadFile(file.id, owner.accessToken).expect(200);
+    expect((download.body as Buffer).equals(content)).toBe(true);
   });
 });

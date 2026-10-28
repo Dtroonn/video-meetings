@@ -7,6 +7,8 @@ import type { MeetingFileDetails } from '../../meeting-files.types';
  *
  * @throws NotFoundException if the upload isn't the user's or they can't see its meeting.
  * @throws ConflictException if bytes are still missing or another request for it is running.
+ * @throws BadRequestException if the stored file's size or content doesn't match the upload; the
+ *   upload and its data are deleted then.
  */
 export class CompleteUploadCommand extends Command<MeetingFileDetails> {
   constructor(

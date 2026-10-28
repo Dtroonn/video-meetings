@@ -38,7 +38,7 @@ export async function MeetingPage({ params }: PageProps<'/[lang]/dashboard/meeti
         {t.back}
       </Link>
       {/* The id is a dynamic param, i.e. runtime data: it's read inside the boundary. */}
-      <Suspense fallback={<MeetingSkeleton t={t} />}>
+      <Suspense fallback={<MeetingSkeleton locale={locale} t={t} />}>
         {params.then(({ id }) => (
           <Meeting id={id} locale={locale} t={t} />
         ))}
@@ -60,7 +60,15 @@ async function Meeting({ id, locale, t }: { id: string; locale: Locale; t: Meeti
     <MeetingLayout
       title={meeting.title}
       date={<DateTime date={meeting.date} locale={locale} />}
-      files={<MeetingFiles meetingId={meeting.id} files={files} locale={locale} t={t} />}
+      files={
+        <MeetingFiles
+          meetingId={meeting.id}
+          ownerId={meeting.ownerId}
+          files={files}
+          locale={locale}
+          t={t}
+        />
+      }
       participants={
         meeting.participantUsers.length === 0 ? (
           <p className="text-muted text-sm">{t.noParticipants}</p>
@@ -80,7 +88,7 @@ async function Meeting({ id, locale, t }: { id: string; locale: Locale; t: Meeti
 }
 
 /** Placeholder of the same layout as the meeting, while it loads. */
-function MeetingSkeleton({ t }: { t: MeetingTexts }) {
+function MeetingSkeleton({ locale, t }: { locale: Locale; t: MeetingTexts }) {
   return (
     <>
       <span className="sr-only" role="status">
@@ -90,7 +98,7 @@ function MeetingSkeleton({ t }: { t: MeetingTexts }) {
         <MeetingLayout
           title={<TextSkeleton className="w-80" />}
           date={<TextSkeleton className="w-40" />}
-          files={<MeetingFilesSkeleton t={t} />}
+          files={<MeetingFilesSkeleton locale={locale} t={t} />}
           participants={
             <div className="flex flex-col gap-2">
               <Skeleton className="h-[1lh] w-48 max-w-full rounded-md text-sm" />

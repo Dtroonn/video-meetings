@@ -24,7 +24,7 @@ export class GetMeetingFilesHandler implements IQueryHandler<
     const files = await this.prisma.meetingFile.findMany({
       where: { meetingId, status: MeetingFileStatus.COMPLETED },
       // `id` breaks ties between files completed at the same time, so the order is stable.
-      orderBy: [{ completedAt: 'asc' }, { id: 'asc' }],
+      orderBy: [{ completedAt: 'desc' }, { id: 'desc' }],
     });
     return this.files.withUploaders(files);
   }

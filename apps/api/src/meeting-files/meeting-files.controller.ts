@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpException,
@@ -12,13 +13,16 @@ import {
   Post,
   Query,
   Req,
+  Res,
+  StreamableFile,
   UnsupportedMediaTypeException,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { UPLOAD_CHUNK_SIZE } from '@video-meetings/contracts';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import type { AuthenticatedUser } from '@/auth/auth.types';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import { DeleteFileCommand } from './commands/delete-file/delete-file.command';
 import { CompleteUploadCommand } from './commands/complete-upload/complete-upload.command';
 import { StartUploadCommand } from './commands/start-upload/start-upload.command';
 import { UploadChunkCommand } from './commands/upload-chunk/upload-chunk.command';
@@ -29,6 +33,7 @@ import { StartMeetingFileUploadRequestDto } from './dto/start-meeting-file-uploa
 import { StartMeetingFileUploadResponseDto } from './dto/start-meeting-file-upload-response.dto';
 import { UploadMeetingFileChunkRequestDto } from './dto/upload-meeting-file-chunk-request.dto';
 import { UploadMeetingFileChunkResponseDto } from './dto/upload-meeting-file-chunk-response.dto';
+import { GetMeetingFileContentQuery } from './queries/get-meeting-file-content/get-meeting-file-content.query';
 import { GetMeetingFilesQuery } from './queries/get-meeting-files/get-meeting-files.query';
 
 /**
@@ -62,7 +67,7 @@ export class MeetingFilesController {
     private readonly queryBus: QueryBus,
   ) {}
 
-  /** A meeting's completed files, oldest first. */
+  /** A meeting's completed files, newest first. */
   @Get()
   async findAll(
     @CurrentUser() user: AuthenticatedUser,
@@ -72,13 +77,50 @@ export class MeetingFilesController {
     return files.map((file) => new MeetingFileResponseDto(file));
   }
 
+  /**
+   * Downloads a completed file under its original name. Whatever the file holds, the response
+   * makes the browser save it, never render it: an uploaded html or svg file must not run inside
+   * the app's origin.
+   */
+  @Get(':id/download')
+  async download(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const { name, size, stream } = await this.queryBus.execute(
+      new GetMeetingFileContentQuery(id, user.id),
+    );
+    // `attachment()` encodes non-ASCII names (RFC 6266) and guesses a Content-Type from the
+    // extension, which is replaced by a generic one so the browser has nothing to render.
+    res.attachment(name);
+    res.set({
+      'Content-Type': 'application/octet-stream',
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'; sandbox",
+      // Access is checked on every request, so no cache may keep a copy.
+      'Cache-Control': 'private, no-store',
+    });
+    return new StreamableFile(stream, { length: size });
+  }
+
+  /** Deletes a completed file: the owner may delete any file, a participant only their own. */
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    await this.commandBus.execute(new DeleteFileCommand(id, user.id));
+  }
+
   @Post('uploads')
   async startUpload(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() { meetingId, name, type, size }: StartMeetingFileUploadRequestDto,
+    @Body() { meetingId, name, size }: StartMeetingFileUploadRequestDto,
   ): Promise<StartMeetingFileUploadResponseDto> {
     const upload = await this.commandBus.execute(
-      new StartUploadCommand(user.id, meetingId, name, type, size),
+      new StartUploadCommand(user.id, meetingId, name, size),
     );
     return new StartMeetingFileUploadResponseDto(upload);
   }
