@@ -151,5 +151,29 @@
       "recentMeetings": "Latest meetings",
       "noMeetings": "You have no meetings yet. Create the first one."
     }
+  },
+  "meeting": {
+    "metadata": {
+      "title": "Meeting · Video Meetings"
+    },
+    "page": {
+      "back": "Dashboard",
+      "loading": "Loading the meeting…",
+      "participants": "Participants",
+      "noParticipants": "No one else was invited.",
+      "files": {
+        "title": "Files",
+        "empty": "No files yet. Upload the meeting's recordings and documents.",
+        "upload": "Upload files",
+        "uploadedBy": "by {email}"
+      },
+      "uploads": {
+        "title": "Uploading",
+        "queued": "Waiting…",
+        "progress": "{loaded} of {total}",
+        "failed": "Couldn't upload the file.",
+        "dismiss": "Remove {name} from the list"
+      }
+    }
   }
 }

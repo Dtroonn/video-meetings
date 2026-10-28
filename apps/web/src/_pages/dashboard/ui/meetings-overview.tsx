@@ -1,12 +1,12 @@
 import { Card, Skeleton } from '@heroui/react';
 import type { MeetingResponse } from '@video-meetings/contracts';
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { resolveApiResponse } from '@/shared/api/server';
-import type { Dictionary, Locale } from '@/shared/i18n';
-import { TextSkeleton } from '@/shared/ui';
+import { localePath, type Dictionary, type Locale } from '@/shared/i18n';
+import { DateTime, TextSkeleton } from '@/shared/ui';
 import { getMeetings } from '../api/get-meetings';
 import { LATEST_MEETINGS_COUNT, latestMeetings } from '../model/latest-meetings';
-import { MeetingDate } from './meeting-date';
 
 type OverviewTexts = Pick<
   Dictionary['dashboard']['page'],
@@ -93,22 +93,32 @@ function LatestCard({ t, children }: { t: OverviewTexts; children: ReactNode }) 
 type MeetingRowProps =
   { meeting: MeetingResponse; locale: Locale } | { meeting: null; locale?: undefined };
 
-/** One meeting: its title and date. With `meeting: null`, skeleton lines of the same height. */
+/**
+ * One meeting: its title and date, linking to the meeting's page. With `meeting: null`, skeleton
+ * lines of the same height.
+ */
 function MeetingRow({ meeting, locale }: MeetingRowProps) {
   return (
-    <li className="flex flex-col gap-0.5 py-3 first:pt-0 last:pb-0">
+    <li className="py-1 first:pt-0 last:pb-0">
       {meeting ? (
-        <>
-          <span className="truncate font-medium">{meeting.title}</span>
-          <span className="text-muted text-sm">
-            <MeetingDate date={meeting.date} locale={locale} />
+        <Link
+          href={localePath(locale, `/dashboard/meetings/${meeting.id}`)}
+          className="group focus-visible:status-focused -mx-2 flex flex-col gap-0.5 rounded-lg px-2 py-2 outline-none"
+        >
+          {/* Hover underlines the title instead of tinting the row: muted text on a grey row
+              background drops below 4.5:1. */}
+          <span className="truncate font-medium underline-offset-2 group-hover:underline">
+            {meeting.title}
           </span>
-        </>
+          <span className="text-muted text-sm">
+            <DateTime date={meeting.date} locale={locale} />
+          </span>
+        </Link>
       ) : (
-        <>
+        <div className="flex flex-col gap-0.5 py-2">
           <Skeleton className="h-[1lh] w-48 max-w-full rounded-md" />
           <Skeleton className="h-[1lh] w-32 rounded-md text-sm" />
-        </>
+        </div>
       )}
     </li>
   );

@@ -1,9 +1,9 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
-import type { Locale } from '@/shared/i18n';
+import type { Locale } from '../i18n';
 
-interface MeetingDateProps {
+interface DateTimeProps {
   /** An ISO 8601 date-time, as the api sends it. */
   date: string;
   locale: Locale;
@@ -13,12 +13,12 @@ interface MeetingDateProps {
 const subscribe = () => () => {};
 
 /**
- * A meeting's date and time in the viewer's own time zone. The server doesn't know that zone, so
- * it renders an invisible placeholder of about the same width and the browser fills in the text
- * right after hydration (`useSyncExternalStore` with a separate server snapshot, so there's no
- * hydration mismatch).
+ * A date and time in the viewer's own time zone. The server doesn't know that zone, so it renders
+ * an invisible placeholder of about the same width and the browser fills in the text right after
+ * hydration (`useSyncExternalStore` with a separate server snapshot, so there's no hydration
+ * mismatch).
  */
-export function MeetingDate({ date, locale }: MeetingDateProps) {
+export function DateTime({ date, locale }: DateTimeProps) {
   const text = useSyncExternalStore(
     subscribe,
     () => formatDate(date, locale),
