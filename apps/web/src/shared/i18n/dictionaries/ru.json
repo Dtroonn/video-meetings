@@ -151,5 +151,29 @@
       "recentMeetings": "Последние встречи",
       "noMeetings": "У вас пока нет встреч. Создайте первую."
     }
+  },
+  "meeting": {
+    "metadata": {
+      "title": "Встреча · Video Meetings"
+    },
+    "page": {
+      "back": "Личный кабинет",
+      "loading": "Загружаем встречу…",
+      "participants": "Участники",
+      "noParticipants": "Больше никто не приглашён.",
+      "files": {
+        "title": "Файлы",
+        "empty": "Файлов пока нет. Загрузите записи и документы встречи.",
+        "upload": "Загрузить файлы",
+        "uploadedBy": "загрузил(а) {email}"
+      },
+      "uploads": {
+        "title": "Загрузка",
+        "queued": "В очереди…",
+        "progress": "{loaded} из {total}",
+        "failed": "Не удалось загрузить файл.",
+        "dismiss": "Убрать {name} из списка"
+      }
+    }
   }
 }
