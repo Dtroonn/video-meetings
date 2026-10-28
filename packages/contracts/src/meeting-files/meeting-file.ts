@@ -6,11 +6,14 @@
  */
 export interface StartMeetingFileUploadRequest {
   meetingId: string;
-  /** The original file name. */
+  /** The original file name; must end in one of the `MEETING_FILE_TYPES` extensions. */
   name: string;
-  /** The MIME type the browser reports (`File.type`); may be empty. */
+  /**
+   * The MIME type the browser reports (`File.type`); may be empty. The api ignores it and stores
+   * the type of the name's extension from `MEETING_FILE_TYPES`.
+   */
   type: string;
-  /** Size in bytes. */
+  /** Size in bytes, at most `MEETING_FILE_MAX_SIZE`. */
   size: number;
 }
 
@@ -30,6 +33,7 @@ export interface MeetingFileUploadResponse {
   readonly id: string;
   readonly meetingId: string;
   readonly name: string;
+  /** The MIME type of the name's extension, from `MEETING_FILE_TYPES`. */
   readonly type: string;
   readonly size: number;
   /** How many bytes the api has stored; the next chunk starts here. */

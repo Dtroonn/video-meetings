@@ -1,7 +1,8 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
-import type { MeetingFile } from '@/generated/prisma/client';
+import { type MeetingFile, MeetingFileStatus } from '@/generated/prisma/client';
 import { GetMeetingByIdQuery } from '@/meetings/queries/get-meeting-by-id/get-meeting-by-id.query';
+import type { MeetingDetails } from '@/meetings/meetings.types';
 import { PrismaService } from '@/prisma/prisma.service';
 import { GetUsersByIdsQuery } from '@/users/queries/get-users-by-ids/get-users-by-ids.query';
 import { toMeetingFileDetails } from '../meeting-files.mapper';
@@ -50,6 +51,31 @@ export class MeetingFilesService {
     }
     await this.queryBus.execute(new GetMeetingByIdQuery(file.meetingId, userId));
     return file;
+  }
+
+  /**
+   * A completed file of a meeting the user can see (as its owner or a participant, whoever
+   * uploaded it), with that meeting.
+   *
+   * @throws NotFoundException if there's no such completed file or the user can't see its meeting
+   *   (the same error, so file ids can't be probed).
+   */
+  async findVisibleFile(
+    id: string,
+    userId: string,
+  ): Promise<{ file: MeetingFile & { storageKey: string }; meeting: MeetingDetails }> {
+    const file = await this.prisma.meetingFile.findFirst({
+      where: { id, status: MeetingFileStatus.COMPLETED },
+    });
+    if (!file?.storageKey) {
+      throw new NotFoundException('File not found');
+    }
+    try {
+      const meeting = await this.queryBus.execute(new GetMeetingByIdQuery(file.meetingId, userId));
+      return { file: { ...file, storageKey: file.storageKey }, meeting };
+    } catch (error) {
+      throw error instanceof NotFoundException ? new NotFoundException('File not found') : error;
+    }
   }
 
   /** Completed files with their uploaders' emails, in the given order. */

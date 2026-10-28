@@ -1,10 +1,11 @@
-import { mkdir, open, rename, rm, truncate } from 'node:fs/promises';
+import { mkdir, open, rename, rm, stat, truncate } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import path from 'node:path';
 import type { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { Injectable, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { fileTypeFromFile } from 'file-type';
 import type { EnvironmentVariables } from '@/config/env.validation';
 
 /** Folder under the root for files still being written; moved out of it when complete. */
@@ -51,6 +52,17 @@ export class StorageService implements OnModuleInit {
     return target.bytesWritten;
   }
 
+  /**
+   * What the temporary file of `id` actually holds: its size on disk and the type `file-type`
+   * recognizes from its first bytes (an extension like `mp4`, or `undefined` if it recognizes
+   * nothing, as for plain text). Reads only the start of the file.
+   */
+  async inspectTemp(id: string): Promise<{ size: number; detectedType: string | undefined }> {
+    const file = this.tempPath(id);
+    const [{ size }, detected] = await Promise.all([stat(file), fileTypeFromFile(file)]);
+    return { size, detectedType: detected?.ext };
+  }
+
   /** Moves the temporary file of `id` to its final place under `key`. */
   async commitTemp(id: string, key: string): Promise<void> {
     const target = this.resolve(key);
@@ -60,6 +72,27 @@ export class StorageService implements OnModuleInit {
 
   async removeTemp(id: string): Promise<void> {
     await rm(this.tempPath(id), { force: true });
+  }
+
+  /**
+   * Opens a stored file for streaming. The file is opened before anything is sent, so a missing
+   * file fails here rather than in the middle of a response.
+   */
+  async openRead(key: string): Promise<{ size: number; stream: Readable }> {
+    const handle = await open(this.resolve(key), 'r');
+    try {
+      const { size } = await handle.stat();
+      // The stream closes the handle when it ends or fails.
+      return { size, stream: handle.createReadStream() };
+    } catch (error) {
+      await handle.close();
+      throw error;
+    }
+  }
+
+  /** Removes a stored file; a file that's already gone is fine. */
+  async remove(key: string): Promise<void> {
+    await rm(this.resolve(key), { force: true });
   }
 
   /** The absolute path of a stored file. */

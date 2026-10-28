@@ -1,3 +1,5 @@
+import type { Readable } from 'node:stream';
+
 /** An upload in progress, as the handlers return it. Sizes are numbers (bigint in the DB). */
 export interface MeetingFileUpload {
   id: string;
@@ -17,4 +19,11 @@ export interface MeetingFileDetails {
   size: number;
   uploader: { id: string; email: string };
   uploadedAt: Date;
+}
+
+/** A stored file ready to be sent: its original name and its content as a stream. */
+export interface MeetingFileContent {
+  name: string;
+  size: number;
+  stream: Readable;
 }
