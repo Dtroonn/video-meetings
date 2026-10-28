@@ -165,14 +165,30 @@
         "title": "Files",
         "empty": "No files yet. Upload the meeting's recordings and documents.",
         "upload": "Upload files",
-        "uploadedBy": "by {email}"
+        "uploadedBy": "by {email}",
+        "download": "Download {name}",
+        "delete": "Delete {name}",
+        "deleteDialog": {
+          "title": "Delete this file?",
+          "body": "{name} will be deleted for everyone in the meeting. This can't be undone.",
+          "cancel": "Cancel",
+          "confirm": "Delete",
+          "failed": "Couldn't delete the file. Try again.",
+          "forbidden": "You can only delete files you uploaded."
+        },
+        "dropzone": {
+          "title": "Drag and drop files here",
+          "hint": "{types} · up to {max} each"
+        }
       },
       "uploads": {
         "title": "Uploading",
         "queued": "Waiting…",
         "progress": "{loaded} of {total}",
         "failed": "Couldn't upload the file.",
-        "dismiss": "Remove {name} from the list"
+        "dismiss": "Remove {name} from the list",
+        "rejectedType": "This file type isn't allowed. Allowed: {types}.",
+        "rejectedSize": "The file is larger than {max}."
       }
     }
   }
