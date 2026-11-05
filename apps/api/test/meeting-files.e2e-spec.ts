@@ -2,11 +2,13 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { access, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { INestApplication } from '@nestjs/common';
+import { CommandBus } from '@nestjs/cqrs';
 import { Test } from '@nestjs/testing';
 import { MEETING_FILE_MAX_SIZE, UPLOAD_CHUNK_SIZE } from '@video-meetings/contracts';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 import { AppModule } from '@/app.module';
+import { DiscardExpiredUploadsCommand } from '@/meeting-files/commands/discard-expired-uploads/discard-expired-uploads.command';
 import { PrismaService } from '@/prisma/prisma.service';
 
 interface TestUser {
@@ -39,6 +41,7 @@ interface StartUploadBody {
   name: string;
   type: string;
   size: number;
+  lastModified: number;
 }
 
 const PASSWORD = 'Str0ng-Passw0rd!';
@@ -58,6 +61,11 @@ const randomContent = (size: number) =>
   size <= CONTENT_PREFIX.length
     ? CONTENT_PREFIX.subarray(0, size)
     : Buffer.concat([CONTENT_PREFIX, randomBytes(size - CONTENT_PREFIX.length)]);
+
+// A different `lastModified` for every upload body, so separate uploads of equal names and sizes
+// are separate files and never resume each other, unless a test sends the same one on purpose.
+let lastModifiedSeed = Date.UTC(2026, 0, 1);
+const uniqueLastModified = () => (lastModifiedSeed += 1000);
 
 const exists = (file: string) =>
   access(file).then(
@@ -128,6 +136,7 @@ describe('Meeting files (e2e)', () => {
     name: 'notes.txt',
     type: 'text/plain',
     size: 5,
+    lastModified: uniqueLastModified(),
     ...overrides,
   });
 
@@ -143,7 +152,13 @@ describe('Meeting files (e2e)', () => {
     content: Buffer,
     { name = 'recording.mp4', type = 'video/mp4' } = {},
   ): Promise<MeetingFile> => {
-    const upload = await startUploadFor(user, { meetingId, name, type, size: content.length });
+    const upload = await startUploadFor(user, {
+      meetingId,
+      name,
+      type,
+      size: content.length,
+      lastModified: uniqueLastModified(),
+    });
     for (let offset = 0; offset < content.length; offset += UPLOAD_CHUNK_SIZE) {
       const chunk = content.subarray(offset, offset + UPLOAD_CHUNK_SIZE);
       const res = await sendChunk(upload.id, offset, chunk, user.accessToken).expect(200);
@@ -172,6 +187,18 @@ describe('Meeting files (e2e)', () => {
       });
     return accessToken ? req.auth(accessToken, { type: 'bearer' }) : req;
   };
+
+  const cancelUpload = (id: string, accessToken?: string) => {
+    const req = server().delete(`/meeting/files/uploads/${id}`);
+    return accessToken ? req.auth(accessToken, { type: 'bearer' }) : req;
+  };
+
+  /** Makes an upload look untouched for `hours`, as if it had been interrupted that long ago. */
+  const ageUpload = (id: string, hours: number) =>
+    app.get(PrismaService).meetingFile.update({
+      where: { id },
+      data: { updatedAt: new Date(Date.now() - hours * 60 * 60 * 1000) },
+    });
 
   const deleteFile = (id: string, accessToken?: string) => {
     const req = server().delete(`/meeting/files/${id}`);
@@ -353,6 +380,10 @@ describe('Meeting files (e2e)', () => {
       ['size is negative', { size: -1 }],
       ['size is not an integer', { size: 1.5 }],
       ['size is a string', { size: '1' }],
+      ['lastModified is missing', { lastModified: undefined }],
+      ['lastModified is negative', { lastModified: -1 }],
+      ['lastModified is not an integer', { lastModified: 1.5 }],
+      ['lastModified is past the largest date', { lastModified: 8.64e15 + 1 }],
       ['an unknown field is sent', { path: '/etc/passwd' }],
     ])('returns 400 when %s', async (_case, overrides) => {
       const owner = await registerUser();
@@ -588,6 +619,227 @@ describe('Meeting files (e2e)', () => {
     await sendChunk(upload.id, 0, Buffer.from('hello'), owner.accessToken).expect(404);
     await sendChunk(upload.id, 0, Buffer.from('hello'), participant.accessToken).expect(200);
     await completeUpload(upload.id, owner.accessToken).expect(404);
+  });
+
+  describe('resuming an upload', () => {
+    it('returns the pending upload with the bytes received and continues from there', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const content = randomContent(UPLOAD_CHUNK_SIZE + 10);
+      const body = uploadBody(meetingId, { name: 'recording.mp4', size: content.length });
+      const upload = await startUploadFor(owner, body);
+      const first = content.subarray(0, UPLOAD_CHUNK_SIZE);
+      await sendChunk(upload.id, 0, first, owner.accessToken).expect(200);
+
+      const resumed = await startUploadFor(owner, body);
+
+      expect(resumed).toEqual({ ...upload, bytesReceived: UPLOAD_CHUNK_SIZE });
+      const rest = content.subarray(UPLOAD_CHUNK_SIZE);
+      await sendChunk(upload.id, UPLOAD_CHUNK_SIZE, rest, owner.accessToken).expect(200);
+      const res = await completeUpload(upload.id, owner.accessToken).expect(200);
+      expect((await storedFile(res.body as MeetingFile)).equals(content)).toBe(true);
+    });
+
+    it('only accepts the next chunk from the bytes already received', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const body = uploadBody(meetingId, { size: 10 });
+      const upload = await startUploadFor(owner, body);
+      await sendChunk(upload.id, 0, Buffer.from('hello'), owner.accessToken).expect(200);
+      await startUploadFor(owner, body);
+
+      await sendChunk(upload.id, 0, Buffer.from('hello'), owner.accessToken).expect(409);
+      await sendChunk(upload.id, 5, Buffer.from('world'), owner.accessToken).expect(200);
+    });
+
+    it.each([
+      ['name', { name: 'other.txt' }],
+      ['size', { size: 11 }],
+      ['last-modified time', { lastModified: 1 }],
+    ])('starts a new upload for a file with another %s', async (_case, overrides) => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const body = uploadBody(meetingId, { size: 10 });
+      const upload = await startUploadFor(owner, body);
+      await sendChunk(upload.id, 0, Buffer.from('hello'), owner.accessToken).expect(200);
+
+      const other = await startUploadFor(owner, { ...body, ...overrides });
+
+      expect(other.id).not.toBe(upload.id);
+      expect(other.bytesReceived).toBe(0);
+    });
+
+    it("never resumes another member's upload or one in another meeting", async () => {
+      const owner = await registerUser();
+      const participant = await registerUser();
+      const meetingId = await createMeeting(owner, [participant]);
+      const otherMeetingId = await createMeeting(owner, [participant]);
+      const body = uploadBody(meetingId, { size: 10 });
+      const upload = await startUploadFor(participant, body);
+      await sendChunk(upload.id, 0, Buffer.from('hello'), participant.accessToken).expect(200);
+
+      const forOwner = await startUploadFor(owner, body);
+      const elsewhere = await startUploadFor(participant, { ...body, meetingId: otherMeetingId });
+
+      expect(forOwner.id).not.toBe(upload.id);
+      expect(forOwner.bytesReceived).toBe(0);
+      expect(elsewhere.id).not.toBe(upload.id);
+      expect(elsewhere.bytesReceived).toBe(0);
+    });
+
+    it('starts a new upload of a file whose upload was completed', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const body = uploadBody(meetingId);
+      const upload = await sendFile(owner, body, Buffer.from('hello'));
+      await completeUpload(upload.id, owner.accessToken).expect(200);
+
+      const again = await startUploadFor(owner, body);
+
+      expect(again.id).not.toBe(upload.id);
+      expect(again.bytesReceived).toBe(0);
+    });
+
+    it('starts over when the partial data of the pending upload is gone', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const body = uploadBody(meetingId, { size: 10 });
+      const upload = await startUploadFor(owner, body);
+      await sendChunk(upload.id, 0, Buffer.from('hello'), owner.accessToken).expect(200);
+      await rm(tempPath(upload.id));
+
+      const again = await startUploadFor(owner, body);
+
+      expect(again.id).not.toBe(upload.id);
+      expect(again.bytesReceived).toBe(0);
+      await sendChunk(upload.id, 5, Buffer.from('world'), owner.accessToken).expect(404);
+    });
+  });
+
+  describe('cancelling an upload', () => {
+    it('deletes the pending upload and its data, so it is never listed', async () => {
+      const owner = await registerUser();
+      const participant = await registerUser();
+      const meetingId = await createMeeting(owner, [participant]);
+      const body = uploadBody(meetingId, { size: 10 });
+      const upload = await startUploadFor(participant, body);
+      await sendChunk(upload.id, 0, Buffer.from('hello'), participant.accessToken).expect(200);
+
+      await cancelUpload(upload.id, participant.accessToken).expect(204);
+
+      expect(await exists(tempPath(upload.id))).toBe(false);
+      await sendChunk(upload.id, 5, Buffer.from('world'), participant.accessToken).expect(404);
+      await completeUpload(upload.id, participant.accessToken).expect(404);
+      for (const user of [owner, participant]) {
+        const res = await listFiles(meetingId, user.accessToken).expect(200);
+        expect(res.body).toEqual([]);
+      }
+      // Selecting the same file again starts from scratch.
+      const again = await startUploadFor(participant, body);
+      expect(again.id).not.toBe(upload.id);
+      expect(again.bytesReceived).toBe(0);
+    });
+
+    it('returns 409 for a completed upload and keeps the file', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const file = await uploadFile(owner, meetingId, randomContent(10));
+
+      await cancelUpload(file.id, owner.accessToken).expect(409);
+
+      const res = await listFiles(meetingId, owner.accessToken).expect(200);
+      expect(res.body).toEqual([file]);
+    });
+
+    it('returns 404 for an upload already cancelled', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const upload = await startUploadFor(owner, uploadBody(meetingId));
+      await cancelUpload(upload.id, owner.accessToken).expect(204);
+
+      await cancelUpload(upload.id, owner.accessToken).expect(404);
+    });
+
+    it("returns 404 for someone else's upload, for non-members and for a missing upload", async () => {
+      const owner = await registerUser();
+      const participant = await registerUser();
+      const stranger = await registerUser();
+      const meetingId = await createMeeting(owner, [participant]);
+      const upload = await startUploadFor(participant, uploadBody(meetingId));
+
+      await cancelUpload(upload.id, owner.accessToken).expect(404);
+      await cancelUpload(upload.id, stranger.accessToken).expect(404);
+      await cancelUpload(randomUUID(), participant.accessToken).expect(404);
+
+      expect(await exists(tempPath(upload.id))).toBe(true);
+    });
+
+    it('returns 400 for an id that is not a UUID and 401 without an access token', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const upload = await startUploadFor(owner, uploadBody(meetingId));
+
+      await cancelUpload('nope', owner.accessToken).expect(400);
+      await cancelUpload(upload.id).expect(401);
+    });
+  });
+
+  describe('uploads interrupted for more than 24 hours', () => {
+    it('start from scratch, and the partial data is deleted', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const body = uploadBody(meetingId, { size: 10 });
+      const upload = await startUploadFor(owner, body);
+      await sendChunk(upload.id, 0, Buffer.from('hello'), owner.accessToken).expect(200);
+      await ageUpload(upload.id, 25);
+
+      const again = await startUploadFor(owner, body);
+
+      expect(again.id).not.toBe(upload.id);
+      expect(again.bytesReceived).toBe(0);
+      expect(await exists(tempPath(upload.id))).toBe(false);
+      await sendChunk(upload.id, 5, Buffer.from('world'), owner.accessToken).expect(404);
+    });
+
+    it('still resume within 24 hours', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const body = uploadBody(meetingId, { size: 10 });
+      const upload = await startUploadFor(owner, body);
+      await sendChunk(upload.id, 0, Buffer.from('hello'), owner.accessToken).expect(200);
+      await ageUpload(upload.id, 23);
+
+      const resumed = await startUploadFor(owner, body);
+
+      expect(resumed).toEqual({ ...upload, bytesReceived: 5 });
+    });
+
+    it('are deleted with their data by the scheduled cleanup', async () => {
+      const owner = await registerUser();
+      const meetingId = await createMeeting(owner);
+      const expired = await startUploadFor(owner, uploadBody(meetingId, { size: 10 }));
+      await sendChunk(expired.id, 0, Buffer.from('hello'), owner.accessToken).expect(200);
+      await ageUpload(expired.id, 25);
+      const fresh = await startUploadFor(owner, uploadBody(meetingId, { size: 10 }));
+      await sendChunk(fresh.id, 0, Buffer.from('hello'), owner.accessToken).expect(200);
+      const file = await uploadFile(owner, meetingId, randomContent(10));
+      // A completed file is never discarded, however old.
+      await ageUpload(file.id, 48);
+
+      const discarded = await app.get(CommandBus).execute(new DiscardExpiredUploadsCommand());
+
+      // At least this test's upload; the dev database may hold other stale ones.
+      expect(discarded).toBeGreaterThanOrEqual(1);
+      const prisma = app.get(PrismaService);
+      expect(await prisma.meetingFile.findUnique({ where: { id: expired.id } })).toBeNull();
+      expect(await exists(tempPath(expired.id))).toBe(false);
+      expect(await prisma.meetingFile.findUnique({ where: { id: fresh.id } })).not.toBeNull();
+      expect(await exists(tempPath(fresh.id))).toBe(true);
+      const res = await listFiles(meetingId, owner.accessToken).expect(200);
+      expect(res.body).toEqual([file]);
+      const download = await downloadFile(file.id, owner.accessToken).expect(200);
+      expect((download.body as Buffer).length).toBe(10);
+    });
   });
 
   describe('downloading a file', () => {

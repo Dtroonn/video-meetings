@@ -6,6 +6,12 @@ export const MEETING_FILE_MAX_SIZE = 100 * 1024 * 1024;
  * (the last one may be smaller), so a 100 MB file takes 20 requests.
  */
 export const UPLOAD_CHUNK_SIZE = 5 * 1024 * 1024;
+
+/**
+ * How long an unfinished upload can be resumed after its last chunk, in ms (24 hours). After that
+ * the api discards it with its partial data, and starting the same file again starts from 0.
+ */
+export const PENDING_UPLOAD_TTL = 24 * 60 * 60 * 1000;
 export const FILE_NAME_MAX_LENGTH = 255;
 /** Upper bound for the MIME type a client reports. */
 export const FILE_TYPE_MAX_LENGTH = 255;

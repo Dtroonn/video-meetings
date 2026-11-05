@@ -2,7 +2,7 @@
 
 import { Button, Card, Skeleton } from '@heroui/react';
 import type { MeetingFileResponse } from '@video-meetings/contracts';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useUserStore } from '@/entities/user';
 import { formatMessage, type Dictionary, type Locale } from '@/shared/i18n';
 import { DateTime } from '@/shared/ui';
@@ -14,6 +14,7 @@ import {
 } from '../model/meeting-files-store';
 import { DeleteFileButton, FileDownloadButton, FileDownloadLink } from './file-actions';
 import { DropZonePanel, FileDropTarget, UploadButton } from './file-drop-zone';
+import { LeaveWarning } from './leave-warning';
 import { UploadList } from './upload-list';
 
 type FilesTexts = Pick<Dictionary['meeting']['page'], 'files' | 'uploads'>;
@@ -34,12 +35,18 @@ interface MeetingFilesProps {
  * Each one uploads with its own progress and joins the list when
  * it's done; a file of a type that isn't allowed or over the size limit is rejected right away.
  * A file's name downloads it; a delete button shows on the files the user may delete.
+ * Uploads pause while the connection is down, can be cancelled, and leaving the page while they
+ * run asks first; leaving stops them, and selecting the same file again later continues it.
  */
 export function MeetingFiles({ meetingId, ownerId, files, locale, t }: MeetingFilesProps) {
   const [store] = useState(() => createMeetingFilesStore(meetingId, files));
+  // Navigating away within the app unmounts the page: stop its uploads rather than leave them
+  // running unseen (they can be continued later).
+  useEffect(() => () => store.getState().dispose(), [store]);
 
   return (
     <MeetingFilesStoreContext value={store}>
+      <LeaveWarning message={t.uploads.leaveWarning} />
       <FileDropTarget>
         <FilesCard t={t}>
           <DropZonePanel

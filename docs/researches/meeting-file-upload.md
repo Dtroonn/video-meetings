@@ -48,7 +48,7 @@ New api dependencies: `@nestjs/schedule`, `file-type`. No new web dependencies.
 - **Dev proxy:** in dev the browser reaches the api through Next's rewrite. Not tested here (dev servers weren't running); verify with one 100 MB upload in Phase 1/2. Production uses nginx directly.
 - **nginx:** default `client_max_body_size` is 1 MB; it must be raised to at least 8 MB for `/api/` or every chunk is rejected.
 - **Emails in responses:** the meetings module doesn't read the users table; participants' and uploaders' emails should come from a users query through the `QueryBus`.
-- **Leave warning:** `beforeunload` doesn't cover in-app navigation (links, back button); decide whether that's required.
+- **Leave warning:** `beforeunload` doesn't cover in-app navigation. Decided: in-app links are caught too (a capture-phase click listener with a confirm); the back button isn't, since an App Router history navigation can't be held back.
 - **Single disk:** local storage ties the api to one instance and volume.
 - **Magic-byte check:** not verified against real mp3/mkv/docx samples; keep an extension-only fallback.
 

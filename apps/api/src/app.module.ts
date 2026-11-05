@@ -2,6 +2,7 @@ import { type MiddlewareConsumer, Module, type NestModule, ValidationPipe } from
 import { ConfigModule } from '@nestjs/config';
 import { APP_PIPE } from '@nestjs/core';
 import { CqrsModule } from '@nestjs/cqrs';
+import { ScheduleModule } from '@nestjs/schedule';
 import cookieParser from 'cookie-parser';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -16,6 +17,8 @@ import { StorageModule } from './storage/storage.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, cache: true, validate: validateEnv }),
     CqrsModule.forRoot(),
+    // Scheduled jobs, e.g. discarding expired uploads.
+    ScheduleModule.forRoot(),
     PrismaModule,
     StorageModule,
     AuthModule,

@@ -7,6 +7,9 @@ import {
 import { IsInt, IsNotEmpty, IsString, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
 import { ALLOWED_FILE_NAME, ALLOWED_FILE_TYPES_MESSAGE } from '../meeting-file-types';
 
+/** The largest time a JavaScript `Date` can hold, in ms since the epoch. */
+const MAX_DATE_MS = 8.64e15;
+
 export class StartMeetingFileUploadRequestDto implements StartMeetingFileUploadRequest {
   @IsUUID()
   meetingId: string;
@@ -30,4 +33,10 @@ export class StartMeetingFileUploadRequestDto implements StartMeetingFileUploadR
     message: `size must not be greater than ${MEETING_FILE_MAX_SIZE} bytes (100 MB)`,
   })
   size: number;
+
+  /** `File.lastModified`: ms since the epoch, at most the largest time a `Date` can hold. */
+  @IsInt()
+  @Min(0)
+  @Max(MAX_DATE_MS)
+  lastModified: number;
 }

@@ -52,6 +52,16 @@ export class StorageService implements OnModuleInit {
     return target.bytesWritten;
   }
 
+  /** The size of the temporary file of `id` on disk, or `undefined` if there's none. */
+  async tempSize(id: string): Promise<number | undefined> {
+    try {
+      return (await stat(this.tempPath(id))).size;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+      throw error;
+    }
+  }
+
   /**
    * What the temporary file of `id` actually holds: its size on disk and the type `file-type`
    * recognizes from its first bytes (an extension like `mp4`, or `undefined` if it recognizes

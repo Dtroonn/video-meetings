@@ -4,6 +4,7 @@ import { type MeetingFile, MeetingFileStatus } from '@/generated/prisma/client';
 import { GetMeetingByIdQuery } from '@/meetings/queries/get-meeting-by-id/get-meeting-by-id.query';
 import type { MeetingDetails } from '@/meetings/meetings.types';
 import { PrismaService } from '@/prisma/prisma.service';
+import { StorageService } from '@/storage/storage.service';
 import { GetUsersByIdsQuery } from '@/users/queries/get-users-by-ids/get-users-by-ids.query';
 import { toMeetingFileDetails } from '../meeting-files.mapper';
 import type { MeetingFileDetails } from '../meeting-files.types';
@@ -11,11 +12,12 @@ import type { MeetingFileDetails } from '../meeting-files.types';
 /** Helpers shared by the meeting files handlers. */
 @Injectable()
 export class MeetingFilesService {
-  /** Ids of uploads a request is working on right now. */
-  private readonly busy = new Set<string>();
+  /** Uploads a request is working on right now, each with a promise that settles when it's done. */
+  private readonly busy = new Map<string, Promise<unknown>>();
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
     private readonly queryBus: QueryBus,
   ) {}
 
@@ -30,12 +32,49 @@ export class MeetingFilesService {
     if (this.busy.has(id)) {
       throw new ConflictException('Another request for this upload is in progress');
     }
-    this.busy.add(id);
+    const running = fn();
+    this.busy.set(id, running);
     try {
-      return await fn();
+      return await running;
     } finally {
       this.busy.delete(id);
     }
+  }
+
+  /**
+   * Like `exclusive`, but waits for the request holding the lock to finish instead of failing.
+   * For cancelling: a chunk still being received when the client gave up ends as soon as its
+   * connection closes.
+   */
+  async afterCurrent<T>(id: string, fn: () => Promise<T>): Promise<T> {
+    for (let current = this.busy.get(id); current; current = this.busy.get(id)) {
+      // Only waiting for it to end; its own request reports how it failed.
+      await current.catch(() => undefined);
+    }
+    return this.exclusive(id, fn);
+  }
+
+  /**
+   * Deletes a pending upload's record and then its temporary file, once no request is working on
+   * it. Only uploads still pending (and, with `updatedBefore`, not touched since) are deleted, so
+   * one that was completed or received a chunk in the meantime stays.
+   *
+   * @returns whether the upload was deleted.
+   */
+  discardUpload(id: string, { updatedBefore }: { updatedBefore?: Date } = {}): Promise<boolean> {
+    return this.afterCurrent(id, async () => {
+      const { count } = await this.prisma.meetingFile.deleteMany({
+        where: {
+          id,
+          status: MeetingFileStatus.PENDING,
+          ...(updatedBefore && { updatedAt: { lt: updatedBefore } }),
+        },
+      });
+      if (count > 0) {
+        await this.storage.removeTemp(id);
+      }
+      return count > 0;
+    });
   }
 
   /**

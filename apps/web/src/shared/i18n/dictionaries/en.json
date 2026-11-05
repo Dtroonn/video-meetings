@@ -188,7 +188,12 @@
         "failed": "Couldn't upload the file.",
         "dismiss": "Remove {name} from the list",
         "rejectedType": "This file type isn't allowed. Allowed: {types}.",
-        "rejectedSize": "The file is larger than {max}."
+        "rejectedSize": "The file is larger than {max}.",
+        "paused": "Paused: waiting for the connection",
+        "resumed": "Resumed",
+        "cancel": "Cancel uploading {name}",
+        "cancelFailed": "Couldn't cancel: the file finished uploading and couldn't be deleted. Delete it from the list.",
+        "leaveWarning": "Files are still uploading. If you leave this page, the uploads stop. Leave anyway?"
       }
     }
   }

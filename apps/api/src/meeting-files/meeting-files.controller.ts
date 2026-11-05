@@ -22,6 +22,7 @@ import { UPLOAD_CHUNK_SIZE } from '@video-meetings/contracts';
 import type { Request, Response } from 'express';
 import type { AuthenticatedUser } from '@/auth/auth.types';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import { CancelUploadCommand } from './commands/cancel-upload/cancel-upload.command';
 import { DeleteFileCommand } from './commands/delete-file/delete-file.command';
 import { CompleteUploadCommand } from './commands/complete-upload/complete-upload.command';
 import { StartUploadCommand } from './commands/start-upload/start-upload.command';
@@ -114,13 +115,17 @@ export class MeetingFilesController {
     await this.commandBus.execute(new DeleteFileCommand(id, user.id));
   }
 
+  /**
+   * Starts an upload, or resumes the user's pending upload of the same file: `bytesReceived` in
+   * the response says where the next chunk starts.
+   */
   @Post('uploads')
   async startUpload(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() { meetingId, name, size }: StartMeetingFileUploadRequestDto,
+    @Body() { meetingId, name, size, lastModified }: StartMeetingFileUploadRequestDto,
   ): Promise<StartMeetingFileUploadResponseDto> {
     const upload = await this.commandBus.execute(
-      new StartUploadCommand(user.id, meetingId, name, size),
+      new StartUploadCommand(user.id, meetingId, name, size, new Date(lastModified)),
     );
     return new StartMeetingFileUploadResponseDto(upload);
   }
@@ -147,5 +152,15 @@ export class MeetingFilesController {
   ): Promise<CompleteMeetingFileUploadResponseDto> {
     const file = await this.commandBus.execute(new CompleteUploadCommand(id, user.id));
     return new CompleteMeetingFileUploadResponseDto(file);
+  }
+
+  /** Cancels the user's own pending upload, so it never appears in the file list. */
+  @Delete('uploads/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async cancelUpload(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    await this.commandBus.execute(new CancelUploadCommand(id, user.id));
   }
 }

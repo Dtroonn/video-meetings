@@ -86,6 +86,9 @@ model MeetingFile {
   mimeType      String            @map("mime_type")
   /// Declared size in bytes.
   size          BigInt
+  /// When the file was last modified on the client (`File.lastModified`); with the name and size it
+  /// identifies the same file when an upload resumes.
+  lastModified  DateTime          @map("last_modified")
   /// Path relative to `UPLOADS_DIR`; set when the upload completes.
   storageKey    String?           @map("storage_key")
   status        MeetingFileStatus @default(PENDING)
@@ -96,5 +99,7 @@ model MeetingFile {
 
   @@index([meetingId, status, completedAt])
   @@index([uploaderId])
+  /// Finding pending uploads past their 24 hours.
+  @@index([status, updatedAt])
   @@map("meeting_files")
 }
