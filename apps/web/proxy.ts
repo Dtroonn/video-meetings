@@ -142,9 +142,9 @@ function loginRedirect(request: NextRequest, locale: Locale): NextResponse {
 
 export const config = {
   matcher: [
-    // Everything except static assets and `/api/*`. Api calls never need the proxy: in production
-    // nginx sends them straight to the api, which reads the access token from its cookie; the
-    // rest are our own Route Handlers (e.g. `/api/auth/refresh`), which rotate on their own.
-    '/((?!api/|_next/static|_next/image|favicon\.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml)$).*)',
+    // Everything except static assets, `/api/*` and `/napi/*`. `/api/*` goes to the api (in
+    // production nginx sends it there directly), which reads the access token from its cookie;
+    // `/napi/*` are our own Route Handlers (e.g. `/napi/auth/refresh`), which rotate on their own.
+    '/((?!api/|napi/|_next/static|_next/image|favicon\.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml)$).*)',
   ],
 };
