@@ -16,11 +16,12 @@
 // output captured and every earlier session left waiting.
 //
 // The loop stops on the first problem and leaves the changes in the working tree to look at.
-// Commands are run with execFileSync (no shell) so prompts and the milestone title are passed
-// as single arguments and never need shell quoting.
-import { execFileSync } from 'node:child_process';
+// Commands are run without a shell (execFileSync, spawn) so prompts and the milestone title are
+// passed as single arguments and never need shell quoting.
+import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
+import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 const projectDir = fileURLToPath(new URL('..', import.meta.url));
@@ -37,17 +38,104 @@ const run = (cmd, args, options = {}) =>
 
 const isTreeClean = () => run('git', ['status', '--porcelain']).trim() === '';
 
-const runClaude = (prompt, model) => {
-  const args = ['-p', prompt];
-  if (model) args.push('--model', model);
-  if (config.maxTurns) args.push('--max-turns', String(config.maxTurns));
-  run('claude', args, { stdio: 'inherit' });
-};
-
 const stop = (message) => {
   console.log(`⛔ ${message} Ralph stops.`);
   process.exit(1);
 };
+
+// Runs `claude -p` and prints its progress as it goes. With plain text output `-p` prints only
+// the final answer when the run ends, so it runs with `stream-json` (one JSON event per line)
+// and prints Claude's text and a short line per tool call. Events of subagents (e.g. the
+// reviewers `/code-review` starts) are skipped to keep the output readable. Stops the loop if
+// the run doesn't end with success (e.g. it hit `maxTurns`).
+const runClaude = (prompt, model) =>
+  new Promise((resolve) => {
+    const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose'];
+    if (model) args.push('--model', model);
+    if (config.maxTurns) args.push('--max-turns', String(config.maxTurns));
+    // Nobody is there to answer a permission prompt in `-p`, so anything the mode would ask
+    // about is denied. `auto` lets the runs use gh, git and the tests on their own.
+    if (config.permissionMode) args.push('--permission-mode', config.permissionMode);
+
+    const startedAt = Date.now();
+    const child = spawn('claude', args, { cwd: projectDir, stdio: ['ignore', 'pipe', 'inherit'] });
+    let result = null;
+
+    createInterface({ input: child.stdout }).on('line', (line) => {
+      let event;
+      try {
+        event = JSON.parse(line);
+      } catch {
+        console.log(line);
+        return;
+      }
+      if (event.type === 'result') result = event;
+      if (event.type !== 'assistant' || event.parent_tool_use_id) return;
+      for (const block of event.message?.content ?? []) {
+        if (block.type === 'text' && block.text.trim()) {
+          console.log(indent(`💬 ${block.text.trim()}`));
+        } else if (block.type === 'tool_use') {
+          console.log(`  🔧 ${describeTool(block.name, block.input ?? {})}`);
+        }
+      }
+    });
+
+    child.on('error', (error) => stop(`Couldn't start claude: ${error.message}.`));
+    child.on('close', (code) => {
+      const seconds = Math.round((Date.now() - startedAt) / 1000);
+      const time = `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+      const turns = result ? `, ${result.num_turns} turns` : '';
+      const cost = result?.total_cost_usd ? `, $${result.total_cost_usd.toFixed(2)}` : '';
+
+      // Tool calls blocked by the permission mode: the run can look fine and still have
+      // skipped an edit or a command.
+      for (const denial of result?.permission_denials ?? []) {
+        const tool = denial.tool_name ?? 'tool';
+        console.log(`  🚫 Permission denied: ${describeTool(tool, denial.tool_input ?? {})}`);
+      }
+
+      if (!result || result.is_error || result.subtype !== 'success' || code !== 0) {
+        const reason = result?.subtype ?? `exit code ${code}`;
+        stop(`The claude run failed (${reason}) after ${time}${turns}.`);
+      }
+      console.log(`  ✔ Done in ${time}${turns}${cost}`);
+      resolve();
+    });
+  });
+
+const indent = (text) => text.replace(/^/gm, '  ');
+
+const relative = (file) => (file ? path.relative(projectDir, file) || file : '');
+
+const truncate = (text, max = 120) => {
+  const line = String(text).split('\n')[0];
+  return line.length > max ? `${line.slice(0, max - 1)}…` : line;
+};
+
+// One line per tool call: the tool and its main argument.
+function describeTool(name, input) {
+  switch (name) {
+    case 'Bash':
+    case 'PowerShell':
+      return `${name}: ${truncate(input.command ?? '')}`;
+    case 'Read':
+    case 'Write':
+    case 'Edit':
+    case 'MultiEdit':
+    case 'NotebookEdit':
+      return `${name}: ${relative(input.file_path ?? input.notebook_path)}`;
+    case 'Grep':
+    case 'Glob':
+      return `${name}: ${truncate(input.pattern ?? '')}`;
+    case 'Skill':
+      return `Skill: ${input.skill ?? ''}${input.args ? ` ${truncate(input.args)}` : ''}`;
+    case 'Agent':
+    case 'Task':
+      return `${name}: ${truncate(input.description ?? '')}`;
+    default:
+      return name;
+  }
+}
 
 // Stops the loop if the last run gave up.
 const checkFailed = (message) => {
@@ -56,6 +144,8 @@ const checkFailed = (message) => {
   stop(`${message} (see the comment on the issue).`);
 };
 
+// `gh issue list` returns the newest issues first; the plan's phases are created in order, so
+// sorting by number gives phase 1 first.
 const openIssues = () =>
   JSON.parse(
     run('gh', [
@@ -67,8 +157,10 @@ const openIssues = () =>
       'open',
       '--json',
       'number,title',
+      '--limit',
+      '500',
     ]),
-  );
+  ).sort((a, b) => a.number - b.number);
 
 // A marker left from an earlier, interrupted run would stop the first issue for no reason.
 rmSync(failedMarker, { force: true });
@@ -91,19 +183,19 @@ for (let issues = openIssues(); issues.length > 0; issues = openIssues()) {
   );
   let prompt = config.prompt.replaceAll('{milestone}', config.milestone);
   prompt = prompt.replaceAll('{branch}', config.branch);
-  runClaude(prompt, config.model);
+  await runClaude(prompt, config.model);
 
   checkFailed(`Issue #${issue.number} failed`);
   if (isTreeClean()) {
     stop(`Issue #${issue.number} run left no changes.`);
   }
-  reviewAndCloseIssue(issue.number);
+  await reviewAndCloseIssue(issue.number);
 }
 
-finishMilestone();
+await finishMilestone();
 
 // Review the issue's uncommitted changes, commit them, push the branch and close the issue.
-function reviewAndCloseIssue(issue) {
+async function reviewAndCloseIssue(issue) {
   // Stage everything so new files are part of the uncommitted diff the review sees.
   run('git', ['add', '-A']);
 
@@ -112,7 +204,7 @@ function reviewAndCloseIssue(issue) {
   // and only this issue's changes are reviewed. Before the first push there is no upstream and
   // the review compares against `main`, which the branch was just created from.
   console.log(`🔍 Code review of issue #${issue}`);
-  runClaude(
+  await runClaude(
     [
       `Issue #${issue} is implemented on branch "${config.branch}" and its changes are staged,`,
       'not committed. Run the code-review skill with the arguments "medium --fix" (no target),',
@@ -138,7 +230,7 @@ function reviewAndCloseIssue(issue) {
 }
 
 // Open the PR for the feature branch and review it.
-function finishMilestone() {
+async function finishMilestone() {
   const existing = JSON.parse(
     run('gh', ['pr', 'list', '--head', config.branch, '--state', 'all', '--json', 'url']),
   );
@@ -148,7 +240,7 @@ function finishMilestone() {
   }
 
   console.log('✅ Milestone complete. Creating PR.');
-  runClaude(
+  await runClaude(
     [
       `All issues in milestone "${config.milestone}" are closed.`,
       `Use the git-commit skill to commit any uncommitted changes on branch "${config.branch}",`,
@@ -166,11 +258,11 @@ function finishMilestone() {
   );
   if (!pr) stop(`No open PR for branch "${config.branch}".`);
   console.log(`🔗 PR: ${pr.url}`);
-  reviewPullRequest(pr);
+  await reviewPullRequest(pr);
 }
 
 // Final review of the whole feature, posted as comments on the PR.
-function reviewPullRequest(pr) {
+async function reviewPullRequest(pr) {
   const files = run('gh', ['pr', 'diff', pr.url, '--name-only']).split('\n').filter(Boolean);
   // Decided here, not by the agent, so the FSD check isn't skipped or run for API-only PRs.
   const touchesWeb = files.some((file) => file.startsWith('apps/web/'));
@@ -191,7 +283,7 @@ function reviewPullRequest(pr) {
   ];
 
   console.log(`🔍 Final review of ${pr.url}${touchesWeb ? ' (with FSD)' : ''}`);
-  runClaude(
+  await runClaude(
     [
       `Review pull request ${pr.url} (branch "${config.branch}", milestone "${config.milestone}").`,
       'Read the diff with `gh pr diff` and the changed files in full where context is needed.',
