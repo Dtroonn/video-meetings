@@ -2,9 +2,10 @@
 
 import { ArrowRightFromSquare, Person } from '@gravity-ui/icons';
 import { Avatar, Dropdown, Label, Skeleton, Spinner } from '@heroui/react';
+import { useRouter } from 'next/navigation';
 import { useTransition, type Key } from 'react';
 import { useUserStore } from '@/entities/user';
-import type { Dictionary, Locale } from '@/shared/i18n';
+import { localePath, type Dictionary, type Locale } from '@/shared/i18n';
 import { logout } from './logout';
 
 interface UserMenuProps {
@@ -21,18 +22,20 @@ export function UserMenu({ locale, t }: UserMenuProps) {
   const isLoading = useUserStore((state) => state.status === 'loading');
   // The Server Function redirects to the login page; isPending stays true until it renders.
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   if (isLoading) {
     return <Skeleton aria-hidden className="size-10 shrink-0 rounded-full" />;
   }
 
   const onAction = (key: Key) => {
-    if (key === 'logout') {
+    if (key === 'profile') {
+      router.push(localePath(locale, '/dashboard/profile'));
+    } else if (key === 'logout') {
       startTransition(async () => {
         await logout(locale);
       });
     }
-    // `profile` has no page yet.
   };
 
   return (

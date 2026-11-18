@@ -140,7 +140,7 @@
       "logOut": "Log out"
     },
     "page": {
-      "greeting": "Hello, {email}",
+      "greeting": "Hello, {name}",
       "greetingNoUser": "Welcome!",
       "loadingUser": "Loading your profile…",
       "userError": "Couldn't load your profile.",
@@ -194,6 +194,39 @@
         "cancel": "Cancel uploading {name}",
         "cancelFailed": "Couldn't cancel: the file finished uploading and couldn't be deleted. Delete it from the list.",
         "leaveWarning": "Files are still uploading. If you leave this page, the uploads stop. Leave anyway?"
+      }
+    }
+  },
+  "profile": {
+    "metadata": {
+      "title": "Profile · Video Meetings"
+    },
+    "title": "Profile",
+    "description": "Your personal details. Only you can see and change them.",
+    "loading": "Loading your profile…",
+    "loadError": "Couldn't load your profile.",
+    "retry": "Try again",
+    "form": {
+      "email": "Email",
+      "emailHint": "Your email is used to log in and can't be changed.",
+      "name": "Name",
+      "nameHint": "Shown in the greeting on your dashboard. At most {max} characters.",
+      "dateOfBirth": "Date of birth",
+      "gender": "Gender",
+      "genders": {
+        "male": "Male",
+        "female": "Female",
+        "none": "Not specified"
+      },
+      "save": "Save changes",
+      "saved": "Changes saved.",
+      "saveError": "Couldn't save your changes. Check your connection and try again.",
+      "retry": "Try again",
+      "validation": {
+        "nameTooLong": "At most {max} characters",
+        "dateOfBirthInvalid": "Enter a valid date",
+        "dateOfBirthTooEarly": "The date must not be earlier than {min}",
+        "dateOfBirthInFuture": "The date must not be in the future"
       }
     }
   }

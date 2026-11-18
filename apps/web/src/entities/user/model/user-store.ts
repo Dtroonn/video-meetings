@@ -16,6 +16,8 @@ export interface UserState {
    * in `status`, so callers can fire it without awaiting or catching.
    */
   load: (signal?: AbortSignal) => Promise<void>;
+  /** Replaces the user with a newer copy, e.g. the api's response to a profile update. */
+  setUser: (user: UserResponse) => void;
 }
 
 /**
@@ -36,6 +38,7 @@ export const createUserStore = () =>
         set({ user: null, status: 'error' });
       }
     },
+    setUser: (user) => set({ user, status: 'ready' }),
   }));
 
 export const UserStoreContext = createContext<StoreApi<UserState> | null>(null);
