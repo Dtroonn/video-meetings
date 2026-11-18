@@ -40,3 +40,6 @@ apps/api/uploads
 
 # Playwright MCP snapshots/screenshots
 .playwright-mcp
+
+# Ralph loop failure marker (.claude/ralph.mjs)
+.claude/ralph.failed
