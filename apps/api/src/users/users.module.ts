@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CreateUserHandler } from './commands/create-user/create-user.handler';
+import { UpdateProfileHandler } from './commands/update-profile/update-profile.handler';
 import { GetUserByIdHandler } from './queries/get-user-by-id/get-user-by-id.handler';
 import { GetUserCredentialsByEmailHandler } from './queries/get-user-credentials-by-email/get-user-credentials-by-email.handler';
 import { GetUsersByIdsHandler } from './queries/get-users-by-ids/get-users-by-ids.handler';
@@ -14,6 +15,7 @@ import { UsersController } from './users.controller';
     GetUserByIdHandler,
     GetUserCredentialsByEmailHandler,
     GetUsersByIdsHandler,
+    UpdateProfileHandler,
   ],
 })
 export class UsersModule {}

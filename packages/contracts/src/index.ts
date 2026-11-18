@@ -6,4 +6,5 @@ export * from './meeting-files/limits';
 export * from './meeting-files/meeting-file';
 export * from './meetings/limits';
 export * from './meetings/meeting';
+export * from './users/limits';
 export * from './users/user';

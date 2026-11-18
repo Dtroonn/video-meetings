@@ -11,6 +11,11 @@ model User {
   id            String               @id @default(uuid(7)) @db.Uuid
   email         String               @unique
   passwordHash  String               @map("password_hash")
+  /// Trimmed, never empty: an empty name is stored as null.
+  name          String?
+  dateOfBirth   DateTime?            @map("date_of_birth") @db.Date
+  /// Null means "not specified".
+  gender        Gender?
   createdAt     DateTime             @default(now()) @map("created_at")
   updatedAt     DateTime             @updatedAt @map("updated_at")
   refreshTokens RefreshToken[]
@@ -19,6 +24,14 @@ model User {
   uploadedFiles MeetingFile[]
 
   @@map("users")
+}
+
+// Values match `GENDERS` in `@video-meetings/contracts`, so they're passed through without mapping.
+enum Gender {
+  male
+  female
+
+  @@map("gender")
 }
 
 // One row per active refresh token (i.e. per session). The row id is the token's `jti` claim;

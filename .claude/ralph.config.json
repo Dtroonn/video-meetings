@@ -1,6 +1,6 @@
 {
   "milestone": "User Profile",
-  "maxIterations": 1,
+  "maxIterations": 2,
   "maxTurns": 50,
   "permissionMode": "auto",
   "branch": "feature/user-profile",
