@@ -18,6 +18,11 @@ export interface UserState {
   load: (signal?: AbortSignal) => Promise<void>;
   /** Replaces the user with a newer copy, e.g. the api's response to a profile update. */
   setUser: (user: UserResponse) => void;
+  /**
+   * Changes only the loaded user's `avatarUrl`, e.g. to `null` after the avatar is removed (the api
+   * answers 204, so there's no newer user to `setUser`). Does nothing before the user has loaded.
+   */
+  setAvatarUrl: (avatarUrl: string | null) => void;
 }
 
 /**
@@ -25,7 +30,7 @@ export interface UserState {
  * the server process too and be shared by every request rendered there.
  */
 export const createUserStore = () =>
-  createStore<UserState>()((set) => ({
+  createStore<UserState>()((set, get) => ({
     user: null,
     status: 'loading',
     load: async (signal) => {
@@ -39,6 +44,10 @@ export const createUserStore = () =>
       }
     },
     setUser: (user) => set({ user, status: 'ready' }),
+    setAvatarUrl: (avatarUrl) => {
+      const { user } = get();
+      if (user) set({ user: { ...user, avatarUrl } });
+    },
   }));
 
 export const UserStoreContext = createContext<StoreApi<UserState> | null>(null);

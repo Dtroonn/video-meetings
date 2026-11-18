@@ -24,6 +24,7 @@ export async function ProfilePage() {
           <ProfileDetails
             t={{ loading: t.loading, loadError: t.loadError, retry: t.retry }}
             messages={t.form}
+            avatarTexts={t.avatar}
           />
         </Card.Content>
       </Card>

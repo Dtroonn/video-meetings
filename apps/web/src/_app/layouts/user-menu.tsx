@@ -1,10 +1,10 @@
 'use client';
 
 import { ArrowRightFromSquare, Person } from '@gravity-ui/icons';
-import { Avatar, Dropdown, Label, Skeleton, Spinner } from '@heroui/react';
+import { Dropdown, Label, Skeleton, Spinner } from '@heroui/react';
 import { useRouter } from 'next/navigation';
 import { useTransition, type Key } from 'react';
-import { useUserStore } from '@/entities/user';
+import { UserAvatar, useUserStore } from '@/entities/user';
 import { localePath, type Dictionary, type Locale } from '@/shared/i18n';
 import { logout } from './logout';
 
@@ -14,8 +14,9 @@ interface UserMenuProps {
 }
 
 /**
- * The avatar in the header and the account menu it opens. A skeleton of the same size stands in
- * while the user is loading; if loading fails the menu still opens, so the user can log out.
+ * The avatar in the header (the user's photo, or a placeholder) and the account menu it opens. A
+ * skeleton of the same size stands in while the user is loading; if loading fails the menu still
+ * opens, so the user can log out.
  */
 export function UserMenu({ locale, t }: UserMenuProps) {
   const user = useUserStore((state) => state.user);
@@ -41,12 +42,8 @@ export function UserMenu({ locale, t }: UserMenuProps) {
   return (
     <Dropdown>
       <Dropdown.Trigger aria-label={t.userMenu} className="rounded-full">
-        <Avatar>
-          {/* Users have no photo yet, so the fallback is always shown. */}
-          <Avatar.Fallback>
-            <Person aria-hidden className="size-5" />
-          </Avatar.Fallback>
-        </Avatar>
+        {/* Follows the store, so a new or removed photo shows here without a reload. */}
+        <UserAvatar avatarUrl={user?.avatarUrl ?? null} />
       </Dropdown.Trigger>
       <Dropdown.Popover placement="bottom end" className="min-w-56">
         {user && (

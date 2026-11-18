@@ -206,6 +206,22 @@
     "loading": "Loading your profile…",
     "loadError": "Couldn't load your profile.",
     "retry": "Try again",
+    "avatar": {
+      "title": "Photo",
+      "photoAlt": "Your photo",
+      "hint": "{types}, up to {max} MB. Shown in the header next to the account menu.",
+      "upload": "Upload photo",
+      "change": "Change photo",
+      "remove": "Remove photo",
+      "uploaded": "Photo updated.",
+      "removed": "Photo removed.",
+      "rejectedType": "This file type isn't supported. Allowed types: {types}.",
+      "rejectedSize": "The file is larger than {max} MB. Choose a smaller image.",
+      "invalidImage": "This file isn't a valid image. Allowed types: {types}.",
+      "uploadError": "Couldn't upload the photo. Check your connection and try again.",
+      "removeError": "Couldn't remove the photo. Check your connection and try again.",
+      "retry": "Try again"
+    },
     "form": {
       "email": "Email",
       "emailHint": "Your email is used to log in and can't be changed.",
