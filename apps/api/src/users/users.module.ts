@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { CreateUserHandler } from './commands/create-user/create-user.handler';
+import { RemoveAvatarHandler } from './commands/remove-avatar/remove-avatar.handler';
+import { SetAvatarHandler } from './commands/set-avatar/set-avatar.handler';
 import { UpdateProfileHandler } from './commands/update-profile/update-profile.handler';
+import { GetAvatarHandler } from './queries/get-avatar/get-avatar.handler';
 import { GetUserByIdHandler } from './queries/get-user-by-id/get-user-by-id.handler';
 import { GetUserCredentialsByEmailHandler } from './queries/get-user-credentials-by-email/get-user-credentials-by-email.handler';
 import { GetUsersByIdsHandler } from './queries/get-users-by-ids/get-users-by-ids.handler';
@@ -12,9 +15,12 @@ import { UsersController } from './users.controller';
   controllers: [UsersController],
   providers: [
     CreateUserHandler,
+    GetAvatarHandler,
     GetUserByIdHandler,
     GetUserCredentialsByEmailHandler,
     GetUsersByIdsHandler,
+    RemoveAvatarHandler,
+    SetAvatarHandler,
     UpdateProfileHandler,
   ],
 })

@@ -1,4 +1,5 @@
-import type { Gender } from '@video-meetings/contracts';
+import type { Readable } from 'node:stream';
+import type { AvatarType, Gender } from '@video-meetings/contracts';
 import type { User } from '@/generated/prisma/client';
 
 /** A user as it may leave the users module by default: never with the password hash. */
@@ -18,4 +19,12 @@ export interface ProfileChanges {
   name?: string | null;
   dateOfBirth?: string | null;
   gender?: Gender | null;
+}
+
+/** A stored avatar opened for streaming. */
+export interface AvatarContent {
+  avatarId: string;
+  type: AvatarType;
+  size: number;
+  stream: Readable;
 }

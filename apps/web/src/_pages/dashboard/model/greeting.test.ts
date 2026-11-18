@@ -8,6 +8,7 @@ const user: UserResponse = {
   name: null,
   dateOfBirth: null,
   gender: null,
+  avatarUrl: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
 };

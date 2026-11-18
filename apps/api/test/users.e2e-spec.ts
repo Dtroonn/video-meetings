@@ -76,6 +76,7 @@ describe('Users (e2e)', () => {
         id,
         email,
         ...EMPTY_PROFILE,
+        avatarUrl: null,
         createdAt: expect.any(String) as unknown,
         updatedAt: expect.any(String) as unknown,
       });
