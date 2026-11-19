@@ -1,9 +1,12 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
+import { ChangePasswordCommand } from './commands/change-password/change-password.command';
 import { LoginCommand } from './commands/login/login.command';
 import { LogoutCommand } from './commands/logout/logout.command';
 import { RefreshTokensCommand } from './commands/refresh-tokens/refresh-tokens.command';
 import { RegisterCommand } from './commands/register/register.command';
+import { ChangePasswordRequestDto } from './dto/change-password-request.dto';
+import { ChangePasswordResponseDto } from './dto/change-password-response.dto';
 import { LoginRequestDto } from './dto/login-request.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { LogoutRequestDto } from './dto/logout-request.dto';
@@ -11,20 +14,23 @@ import { RefreshTokensRequestDto } from './dto/refresh-tokens-request.dto';
 import { RefreshTokensResponseDto } from './dto/refresh-tokens-response.dto';
 import { RegisterRequestDto } from './dto/register-request.dto';
 import { RegisterResponseDto } from './dto/register-response.dto';
+import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
+import type { AuthenticatedUser } from './auth.types';
 
-// These endpoints are how a client gets an access token, so they can't require one.
-@Public()
 @Controller('auth')
 export class AuthController {
   constructor(private readonly commandBus: CommandBus) {}
 
+  // Register, login and refresh are how a client gets an access token, so they can't require one.
+  @Public()
   @Post('register')
   async register(@Body() { email, password }: RegisterRequestDto): Promise<RegisterResponseDto> {
     const result = await this.commandBus.execute(new RegisterCommand(email, password));
     return new RegisterResponseDto(result);
   }
 
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() { email, password }: LoginRequestDto): Promise<LoginResponseDto> {
@@ -32,6 +38,7 @@ export class AuthController {
     return new LoginResponseDto(result);
   }
 
+  @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(
@@ -42,9 +49,23 @@ export class AuthController {
   }
 
   // Public like the rest: the access token may well have expired by the time the user logs out.
+  @Public()
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(@Body() { refreshToken }: LogoutRequestDto): Promise<void> {
     await this.commandBus.execute(new LogoutCommand(refreshToken));
+  }
+
+  /** The only auth route that requires an access token: it acts on the signed-in user. */
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() { currentPassword, newPassword }: ChangePasswordRequestDto,
+  ): Promise<ChangePasswordResponseDto> {
+    const tokens = await this.commandBus.execute(
+      new ChangePasswordCommand(user.id, currentPassword, newPassword),
+    );
+    return new ChangePasswordResponseDto(tokens);
   }
 }

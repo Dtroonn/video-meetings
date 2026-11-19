@@ -343,6 +343,162 @@ describe('Auth (e2e)', () => {
     });
   });
 
+  describe('POST /auth/change-password', () => {
+    const NEW_PASSWORD = 'N3w-Str0ng-Passw0rd!';
+
+    const changePassword = (accessToken: string, body: object) =>
+      request(app.getHttpServer())
+        .post('/auth/change-password')
+        .auth(accessToken, { type: 'bearer' })
+        .send(body);
+
+    const me = (accessToken: string) =>
+      request(app.getHttpServer()).get('/users/me').auth(accessToken, { type: 'bearer' });
+
+    it('changes the password: the old one fails at login and the new one works', async () => {
+      const { user, accessToken } = await registerUser();
+
+      await changePassword(accessToken, {
+        currentPassword: PASSWORD,
+        newPassword: NEW_PASSWORD,
+      }).expect(200);
+
+      await login({ email: user.email, password: PASSWORD }).expect(401);
+      const res = await login({ email: user.email, password: NEW_PASSWORD }).expect(200);
+      expectAuthResponse(res.body, user.email);
+    });
+
+    it('returns a new token pair for the current session, without the password', async () => {
+      const { user, accessToken } = await registerUser();
+
+      const res = await changePassword(accessToken, {
+        currentPassword: PASSWORD,
+        newPassword: NEW_PASSWORD,
+      }).expect(200);
+
+      const tokens = expectTokens(res.body);
+      expectAccessTokenFor(tokens.accessToken, user);
+      expect(JSON.stringify(res.body)).not.toContain(NEW_PASSWORD);
+    });
+
+    it('keeps the current session working', async () => {
+      const { user, accessToken } = await registerUser();
+
+      const res = await changePassword(accessToken, {
+        currentPassword: PASSWORD,
+        newPassword: NEW_PASSWORD,
+      }).expect(200);
+      const tokens = expectTokens(res.body);
+
+      // The access token the change was made with stays valid until it expires...
+      await me(accessToken).expect(200);
+      // ...and the returned pair carries the session on.
+      const meRes = await me(tokens.accessToken).expect(200);
+      expect((meRes.body as AuthUser).id).toBe(user.id);
+      const refreshed = await refresh({ refreshToken: tokens.refreshToken }).expect(200);
+      expectTokens(refreshed.body);
+    });
+
+    it("signs out the user's other sessions: their refresh tokens are rejected", async () => {
+      const { user, accessToken, refreshToken: currentSession } = await registerUser();
+      const loginRes = await login({ email: user.email, password: PASSWORD }).expect(200);
+      const otherSession = expectAuthResponse(loginRes.body, user.email).refreshToken;
+
+      await changePassword(accessToken, {
+        currentPassword: PASSWORD,
+        newPassword: NEW_PASSWORD,
+      }).expect(200);
+
+      await refresh({ refreshToken: otherSession }).expect(401);
+      // Replaced by the returned pair.
+      await refresh({ refreshToken: currentSession }).expect(401);
+    });
+
+    it("does not touch other users' sessions or passwords", async () => {
+      const changer = await registerUser();
+      const other = await registerUser();
+
+      await changePassword(changer.accessToken, {
+        currentPassword: PASSWORD,
+        newPassword: NEW_PASSWORD,
+      }).expect(200);
+
+      await refresh({ refreshToken: other.refreshToken }).expect(200);
+      await login({ email: other.user.email, password: PASSWORD }).expect(200);
+    });
+
+    it('rejects a wrong current password with 403 and keeps the password and sessions', async () => {
+      const { user, accessToken, refreshToken } = await registerUser();
+
+      const res = await changePassword(accessToken, {
+        currentPassword: `wrong-${PASSWORD}`,
+        newPassword: NEW_PASSWORD,
+      }).expect(403);
+
+      expect((res.body as { message: unknown }).message).toBe('Current password is wrong');
+      await login({ email: user.email, password: PASSWORD }).expect(200);
+      await login({ email: user.email, password: NEW_PASSWORD }).expect(401);
+      await refresh({ refreshToken }).expect(200);
+    });
+
+    it.each([
+      ['the new password is too short (7 characters)', { newPassword: 'a'.repeat(7) }],
+      ['the new password is too long (129 characters)', { newPassword: 'a'.repeat(129) }],
+      ['the new password is missing', { newPassword: undefined }],
+      ['the new password is not a string', { newPassword: 12345678 }],
+      ['the current password is missing', { currentPassword: undefined }],
+      ['the current password is empty', { currentPassword: '' }],
+      ['the current password is too long (129 characters)', { currentPassword: 'a'.repeat(129) }],
+      ['the body has an unknown field', { extra: 'x' }],
+    ])('returns 400 and keeps the password when %s', async (_case, overrides) => {
+      const { user, accessToken, refreshToken } = await registerUser();
+
+      await changePassword(accessToken, {
+        currentPassword: PASSWORD,
+        newPassword: NEW_PASSWORD,
+        ...overrides,
+      }).expect(400);
+
+      await login({ email: user.email, password: PASSWORD }).expect(200);
+      await refresh({ refreshToken }).expect(200);
+    });
+
+    it('accepts new passwords of exactly 8 and 128 characters', async () => {
+      const { user, accessToken } = await registerUser();
+      const shortest = 'b'.repeat(8);
+      const longest = 'c'.repeat(128);
+
+      const first = await changePassword(accessToken, {
+        currentPassword: PASSWORD,
+        newPassword: shortest,
+      }).expect(200);
+      await changePassword(expectTokens(first.body).accessToken, {
+        currentPassword: shortest,
+        newPassword: longest,
+      }).expect(200);
+
+      await login({ email: user.email, password: longest }).expect(200);
+    });
+
+    it('returns 401 without an access token', async () => {
+      await request(app.getHttpServer())
+        .post('/auth/change-password')
+        .send({ currentPassword: PASSWORD, newPassword: NEW_PASSWORD })
+        .expect(401);
+    });
+
+    it('returns 401 for a refresh token used as the access token', async () => {
+      const { user, refreshToken } = await registerUser();
+
+      await changePassword(refreshToken, {
+        currentPassword: PASSWORD,
+        newPassword: NEW_PASSWORD,
+      }).expect(401);
+
+      await login({ email: user.email, password: PASSWORD }).expect(200);
+    });
+  });
+
   describe('GET /users/me', () => {
     const me = () => request(app.getHttpServer()).get('/users/me');
 
