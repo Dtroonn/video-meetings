@@ -4,7 +4,7 @@
   "maxTurns": 50,
   "permissionMode": "auto",
   "branch": "feature/user-profile",
-  "prompt": "Read @./.claude/ralph.md and follow its rules. Take the next open issue from milestone '{milestone}' and implement it on branch '{branch}'.",
+  "prompt": "Read @./.claude/ralph.md and follow its rules. Implement issue #{issue} \"{title}\" from milestone '{milestone}' on branch '{branch}'.",
   "model": "opus",
   "prModel": "sonnet",
   "finalCodeReviewModel": "opus",

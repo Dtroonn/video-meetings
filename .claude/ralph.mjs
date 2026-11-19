@@ -160,7 +160,13 @@ const openIssues = () =>
       '--limit',
       '500',
     ]),
-  ).sort((a, b) => a.number - b.number);
+  )
+    // GitHub's issue list lags behind for a few seconds: right after `gh issue close` it can
+    // still return the issue as open, and the loop would take it again.
+    .filter((issue) => !closedIssues.has(issue.number))
+    .sort((a, b) => a.number - b.number);
+
+const closedIssues = new Set();
 
 // A marker left from an earlier, interrupted run would stop the first issue for no reason.
 rmSync(failedMarker, { force: true });
@@ -181,8 +187,13 @@ for (let issues = openIssues(); issues.length > 0; issues = openIssues()) {
   console.log(
     `🔄 Iteration ${iteration}/${config.maxIterations} — Issue #${issue.number}: ${issue.title}`,
   );
-  let prompt = config.prompt.replaceAll('{milestone}', config.milestone);
-  prompt = prompt.replaceAll('{branch}', config.branch);
+  // The issue is named in the prompt: the agent must not pick one itself, or the script would
+  // review, commit and close the changes under another issue's number.
+  const prompt = config.prompt
+    .replaceAll('{issue}', String(issue.number))
+    .replaceAll('{title}', issue.title)
+    .replaceAll('{milestone}', config.milestone)
+    .replaceAll('{branch}', config.branch);
   await runClaude(prompt, config.model);
 
   checkFailed(`Issue #${issue.number} failed`);
@@ -226,6 +237,7 @@ async function reviewAndCloseIssue(issue) {
   run('git', ['push', '-u', 'origin', config.branch], { stdio: 'inherit' });
   const sha = run('git', ['rev-parse', '--short', 'HEAD']).trim();
   run('gh', ['issue', 'close', String(issue), '--comment', `Implemented and reviewed in ${sha}.`]);
+  closedIssues.add(issue);
   console.log(`✅ Issue #${issue} closed.`);
 }
 

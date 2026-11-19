@@ -1,7 +1,9 @@
 # Ralph Loop - rules for standalone work
 
 ## How to handle issues
-- Read title, body and DoDs
+- Implement only the issue named in the prompt. Don't pick another open issue, even if it looks
+  like the next one: the loop script reviews, commits and closes the changes under that number
+- Read title, body and DoDs (`gh issue view <number>`)
 - Check if the specified branch exists. If not, create it from the current HEAD. Switch to it.
 - Work only in the branch without creating new ones
 
