@@ -9,8 +9,9 @@ declare module 'axios' {
   }
 }
 
-/** Our Route Handler that rotates the session cookies (`refreshTokens` in `@/_app/api-routes`). */
-const REFRESH_PATH = '/auth/refresh';
+/** Our Route Handler that rotates the session cookies (`refreshTokens` in `@/_app/api-routes`). Next's own
+ * Route Handlers live under `/napi`, so `/api/*` always means the api. */
+const REFRESH_PATH = '/napi/auth/refresh';
 
 /**
  * The api client for the browser (Client Components only). Requests go to same-origin `/api/...`,
@@ -18,7 +19,7 @@ const REFRESH_PATH = '/auth/refresh';
  * and the api reads the token from it, so no `Authorization` header is added (JS can't read the
  * cookie). Server code uses `apiPost` / `apiGet` instead: relative URLs don't work there.
  *
- * On a 401 it refreshes the session once via `POST /api/auth/refresh` and retries the request.
+ * On a 401 it refreshes the session once via `POST /napi/auth/refresh` and retries the request.
  * Errors are thrown as `AxiosError`.
  */
 export const apiClient = axios.create({
@@ -35,7 +36,7 @@ let refreshing: Promise<void> | null = null;
 function refreshSession(): Promise<void> {
   // A bare `axios` call, not `apiClient`: the refresh mustn't pass through these interceptors.
   refreshing ??= axios
-    .post(`/api${REFRESH_PATH}`)
+    .post(REFRESH_PATH)
     .then(() => undefined)
     .finally(() => {
       refreshing = null;

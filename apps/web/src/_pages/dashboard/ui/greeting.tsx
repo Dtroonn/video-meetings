@@ -4,6 +4,7 @@ import { Button } from '@heroui/react';
 import { useUserStore } from '@/entities/user';
 import { formatMessage, type Dictionary } from '@/shared/i18n';
 import { TextSkeleton } from '@/shared/ui';
+import { greetingName } from '../model/greeting';
 
 type GreetingTexts = Pick<
   Dictionary['dashboard']['page'],
@@ -11,7 +12,7 @@ type GreetingTexts = Pick<
 >;
 
 /**
- * The page heading, greeting the user by email. While the user loads, a skeleton one line high
+ * The page heading, greeting the user by name, or by email when they haven't set one. While the user loads, a skeleton one line high
  * stands in for the text; if loading fails, a generic greeting and a retry button.
  */
 export function Greeting({ t }: { t: GreetingTexts }) {
@@ -23,7 +24,7 @@ export function Greeting({ t }: { t: GreetingTexts }) {
     <div className="min-w-0">
       <h1 className="text-2xl font-semibold tracking-tight wrap-break-word sm:text-3xl">
         {user ? (
-          formatMessage(t.greeting, { email: user.email })
+          formatMessage(t.greeting, { name: greetingName(user) })
         ) : status === 'error' ? (
           t.greetingNoUser
         ) : (

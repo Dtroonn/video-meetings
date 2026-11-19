@@ -9,10 +9,10 @@ import {
 } from '@/shared/auth';
 
 /**
- * `POST /api/auth/refresh`: rotates the session cookies for client-side code, which can't read
+ * `POST /napi/auth/refresh`: rotates the session cookies for client-side code, which can't read
  * the httpOnly refresh token itself. Shares the grace window with `proxy.ts`, so a client retry
- * racing a page navigation gets the same pair instead of a 401. Takes precedence over the
- * `/api/*` rewrite to the api (filesystem routes are matched before `next.config` rewrites).
+ * racing a page navigation gets the same pair instead of a 401. Lives under `/napi`, not `/api`,
+ * so it never collides with the `/api/*` rewrite to the api.
  *
  * Responds 204 with new cookies; 401 (cookies cleared) if there's no session or the api rejected
  * the refresh token; 500 (cookies kept, so a later retry can still succeed) if the api failed.

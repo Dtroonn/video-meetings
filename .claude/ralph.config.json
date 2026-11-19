@@ -1,0 +1,12 @@
+{
+  "milestone": "User Profile",
+  "maxIterations": 5,
+  "maxTurns": 50,
+  "permissionMode": "auto",
+  "branch": "feature/user-profile",
+  "prompt": "Read @./.claude/ralph.md and follow its rules. Implement issue #{issue} \"{title}\" from milestone '{milestone}' on branch '{branch}'.",
+  "model": "opus",
+  "prModel": "sonnet",
+  "finalCodeReviewModel": "opus",
+  "codeReviewModel": "sonnet"
+}

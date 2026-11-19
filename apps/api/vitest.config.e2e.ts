@@ -1,7 +1,6 @@
-import { tmpdir } from 'node:os';
-import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 import tsconfigPaths from 'vite-tsconfig-paths';
+import { E2E_UPLOADS_DIR } from './test/e2e-uploads-dir';
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
@@ -9,9 +8,10 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.e2e-spec.ts'],
+    globalSetup: ['./test/global-setup.ts'],
     env: {
       // Process env wins over `.env`, so files uploaded by tests stay out of the dev uploads folder.
-      UPLOADS_DIR: path.join(tmpdir(), 'video-meetings-e2e-uploads'),
+      UPLOADS_DIR: E2E_UPLOADS_DIR,
     },
   },
 });

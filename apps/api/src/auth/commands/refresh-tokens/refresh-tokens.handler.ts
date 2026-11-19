@@ -13,13 +13,13 @@ export class RefreshTokensHandler implements ICommandHandler<RefreshTokensComman
   ) {}
 
   async execute({ refreshToken }: RefreshTokensCommand): Promise<AuthTokens> {
-    const userId = await this.tokens.consumeRefreshToken(refreshToken);
+    const token = await this.tokens.verifyRefreshToken(refreshToken);
 
-    const user = await this.queryBus.execute(new GetUserByIdQuery(userId));
+    const user = await this.queryBus.execute(new GetUserByIdQuery(token.sub));
     if (!user) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    return this.tokens.issue(user);
+    return this.tokens.rotateRefreshToken(token, user);
   }
 }

@@ -140,7 +140,7 @@
       "logOut": "Log out"
     },
     "page": {
-      "greeting": "Hello, {email}",
+      "greeting": "Hello, {name}",
       "greetingNoUser": "Welcome!",
       "loadingUser": "Loading your profile…",
       "userError": "Couldn't load your profile.",
@@ -194,6 +194,78 @@
         "cancel": "Cancel uploading {name}",
         "cancelFailed": "Couldn't cancel: the file finished uploading and couldn't be deleted. Delete it from the list.",
         "leaveWarning": "Files are still uploading. If you leave this page, the uploads stop. Leave anyway?"
+      }
+    }
+  },
+  "profile": {
+    "metadata": {
+      "title": "Profile · Video Meetings"
+    },
+    "title": "Profile",
+    "description": "Your personal details. Only you can see and change them.",
+    "loading": "Loading your profile…",
+    "loadError": "Couldn't load your profile.",
+    "retry": "Try again",
+    "avatar": {
+      "title": "Photo",
+      "photoAlt": "Your photo",
+      "hint": "{types}, up to {max} MB. Shown in the header next to the account menu.",
+      "upload": "Upload photo",
+      "change": "Change photo",
+      "remove": "Remove photo",
+      "uploaded": "Photo updated.",
+      "removed": "Photo removed.",
+      "rejectedType": "This file type isn't supported. Allowed types: {types}.",
+      "rejectedSize": "The file is larger than {max} MB. Choose a smaller image.",
+      "invalidImage": "This file isn't a valid image. Allowed types: {types}.",
+      "uploadError": "Couldn't upload the photo. Check your connection and try again.",
+      "removeError": "Couldn't remove the photo. Check your connection and try again.",
+      "retry": "Try again"
+    },
+    "form": {
+      "email": "Email",
+      "emailHint": "Your email is used to log in and can't be changed.",
+      "name": "Name",
+      "nameHint": "Shown in the greeting on your dashboard. At most {max} characters.",
+      "dateOfBirth": "Date of birth",
+      "gender": "Gender",
+      "genders": {
+        "male": "Male",
+        "female": "Female",
+        "none": "Not specified"
+      },
+      "save": "Save changes",
+      "saved": "Changes saved.",
+      "saveError": "Couldn't save your changes. Check your connection and try again.",
+      "retry": "Try again",
+      "validation": {
+        "nameTooLong": "At most {max} characters",
+        "dateOfBirthInvalid": "Enter a valid date",
+        "dateOfBirthTooEarly": "The date must not be earlier than {min}",
+        "dateOfBirthInFuture": "The date must not be in the future"
+      }
+    },
+    "password": {
+      "title": "Password",
+      "description": "After the change, you stay signed in here; other devices are signed out within 15 minutes.",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "newPasswordHint": "From {min} to {max} characters.",
+      "confirmNewPassword": "Confirm new password",
+      "submit": "Change password",
+      "changed": "Password changed.",
+      "retry": "Try again",
+      "validation": {
+        "currentPasswordRequired": "Enter your current password",
+        "currentPasswordTooLong": "Password must be at most {max} characters",
+        "newPasswordTooShort": "Password must be at least {min} characters",
+        "newPasswordTooLong": "Password must be at most {max} characters",
+        "confirmNewPasswordRequired": "Confirm your new password",
+        "passwordsMismatch": "Passwords do not match"
+      },
+      "errors": {
+        "wrongCurrentPassword": "The current password is wrong",
+        "failed": "Couldn't change the password. Check your connection and try again."
       }
     }
   }

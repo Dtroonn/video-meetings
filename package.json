@@ -13,6 +13,8 @@
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
     "db:logs": "docker compose logs -f postgres",
+    "db:seed": "pnpm --filter @video-meetings/api db:seed",
+    "ralph": "node .claude/ralph.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

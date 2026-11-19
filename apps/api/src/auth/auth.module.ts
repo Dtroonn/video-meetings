@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from '@/users/users.module';
 import { AuthController } from './auth.controller';
+import { ChangePasswordHandler } from './commands/change-password/change-password.handler';
 import { LoginHandler } from './commands/login/login.handler';
 import { LogoutHandler } from './commands/logout/logout.handler';
 import { RefreshTokensHandler } from './commands/refresh-tokens/refresh-tokens.handler';
@@ -24,6 +25,7 @@ import { TokensService } from './services/tokens.service';
     LoginHandler,
     RefreshTokensHandler,
     LogoutHandler,
+    ChangePasswordHandler,
     PasswordService,
     TokensService,
     // Global: every route of every module needs an access token unless it's marked @Public().

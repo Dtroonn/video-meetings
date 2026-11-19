@@ -10,13 +10,13 @@ Request/response shapes and validation limits shared by `apps/api` and `apps/web
 
 ## Structure
 
-- `src/<area>/` (`auth`, `meetings`, `meeting-files`, `users`) — interfaces named `<Name>Request` / `<Name>Response`, plus `limits.ts` with constants such as `PASSWORD_MAX_LENGTH` or `UPLOAD_CHUNK_SIZE` (the chunk size web uploads with and the api's per-request maximum). `auth/cookies.ts` holds the session cookie names (`ACCESS_TOKEN_COOKIE`, `REFRESH_TOKEN_COOKIE`): the web app sets them, the api reads the access token from its cookie.
+- `src/<area>/` (`auth`, `meetings`, `meeting-files`, `users`) — interfaces named `<Name>Request` / `<Name>Response`, plus `limits.ts` with constants such as `PASSWORD_MAX_LENGTH`, `NAME_MAX_LENGTH`, `GENDERS`, `AVATAR_TYPES` / `AVATAR_MAX_SIZE` or `UPLOAD_CHUNK_SIZE` (the chunk size web uploads with and the api's per-request maximum). `auth/cookies.ts` holds the session cookie names (`ACCESS_TOKEN_COOKIE`, `REFRESH_TOKEN_COOKIE`): the web app sets them, the api reads the access token from its cookie.
 - `src/common/` — shapes not tied to one area: `ApiErrorResponse`, the body of every api error (NestJS's default exception body: `statusCode`, `message` as one string or one per field, optional `error`). The api has no DTO for it because Nest produces it itself.
 - `src/index.ts` — the only entry point; re-export everything new from it.
 
 ## Things to know
 
 - **Consumed from `dist/`**, not source: the API runs compiled output under Node and Next has no `transpilePackages`. Turbo's `^build` (also on `dev`, `lint`, `check-types`) builds this package first, so apps always see fresh types.
-- **Dates are ISO 8601 strings**, as they arrive over JSON. The API's response DTOs call `toISOString()`.
+- **Dates are ISO 8601 strings**, as they arrive over JSON. The API's response DTOs call `toISOString()`. Calendar dates without a time (a user's `dateOfBirth`) are `YYYY-MM-DD`, so time zones can't shift them.
 - **The API's DTO classes `implements` these interfaces** and keep their class-validator decorators; web uses the types and constants directly (valibot form schemas import the limits). When you change a shape or limit, change it here — both apps then fail type-checking until they agree.
 - `tsup.config.ts` sets `ignoreDeprecations` for the dts build because tsup injects the deprecated `baseUrl`, which TypeScript 6 rejects.

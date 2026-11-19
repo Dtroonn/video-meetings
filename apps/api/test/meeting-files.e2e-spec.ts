@@ -218,7 +218,6 @@ describe('Meeting files (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
-    await rm(UPLOADS_DIR, { recursive: true, force: true });
   });
 
   describe('uploading a file', () => {
