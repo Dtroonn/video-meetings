@@ -40,14 +40,70 @@ const isTreeClean = () => run('git', ['status', '--porcelain']).trim() === '';
 
 const stop = (message) => {
   console.log(`⛔ ${message} Ralph stops.`);
+  printTotal();
   process.exit(1);
 };
+
+// Token usage, from the `result` event of each run. `modelUsage` has one entry per model the
+// run used, subagents included (e.g. the reviewers `/code-review` starts), so it's summed.
+const emptyUsage = () => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 });
+
+const addUsage = (to, from) => {
+  for (const key of Object.keys(to)) to[key] += from[key];
+  return to;
+};
+
+const usageOf = (result) => {
+  const usage = emptyUsage();
+  const models = Object.values(result.modelUsage ?? {});
+  if (models.length > 0) {
+    for (const model of models) {
+      usage.input += model.inputTokens ?? 0;
+      usage.output += model.outputTokens ?? 0;
+      usage.cacheRead += model.cacheReadInputTokens ?? 0;
+      usage.cacheWrite += model.cacheCreationInputTokens ?? 0;
+    }
+  } else {
+    usage.input = result.usage?.input_tokens ?? 0;
+    usage.output = result.usage?.output_tokens ?? 0;
+    usage.cacheRead = result.usage?.cache_read_input_tokens ?? 0;
+    usage.cacheWrite = result.usage?.cache_creation_input_tokens ?? 0;
+  }
+  usage.cost = result.total_cost_usd ?? 0;
+  return usage;
+};
+
+const formatTokens = (count) => {
+  if (count >= 1e6) return `${(count / 1e6).toFixed(2)}M`;
+  if (count >= 1e3) return `${(count / 1e3).toFixed(1)}k`;
+  return String(count);
+};
+
+// Input counts every token sent to the model; most of it is usually read from the prompt
+// cache, which is much cheaper, so the cache part is shown separately.
+const formatUsage = (usage) => {
+  const input = usage.input + usage.cacheRead + usage.cacheWrite;
+  return [
+    `${formatTokens(input)} in (${formatTokens(usage.cacheRead)} cache read,`,
+    `${formatTokens(usage.cacheWrite)} cache write)`,
+    `· ${formatTokens(usage.output)} out · $${usage.cost.toFixed(2)}`,
+  ].join(' ');
+};
+
+// Everything this `pnpm ralph` run spent, printed when it ends or stops.
+const totalUsage = emptyUsage();
+
+function printTotal() {
+  if (totalUsage.cost > 0 || totalUsage.output > 0) {
+    console.log(`📊 Total: ${formatUsage(totalUsage)}`);
+  }
+}
 
 // Runs `claude -p` and prints its progress as it goes. With plain text output `-p` prints only
 // the final answer when the run ends, so it runs with `stream-json` (one JSON event per line)
 // and prints Claude's text and a short line per tool call. Events of subagents (e.g. the
 // reviewers `/code-review` starts) are skipped to keep the output readable. Stops the loop if
-// the run doesn't end with success (e.g. it hit `maxTurns`).
+// the run doesn't end with success (e.g. it hit `maxTurns`). Resolves with the run's token usage.
 const runClaude = (prompt, model) =>
   new Promise((resolve) => {
     const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose'];
@@ -85,7 +141,8 @@ const runClaude = (prompt, model) =>
       const seconds = Math.round((Date.now() - startedAt) / 1000);
       const time = `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
       const turns = result ? `, ${result.num_turns} turns` : '';
-      const cost = result?.total_cost_usd ? `, $${result.total_cost_usd.toFixed(2)}` : '';
+      const usage = result ? usageOf(result) : emptyUsage();
+      addUsage(totalUsage, usage);
 
       // Tool calls blocked by the permission mode: the run can look fine and still have
       // skipped an edit or a command.
@@ -98,8 +155,8 @@ const runClaude = (prompt, model) =>
         const reason = result?.subtype ?? `exit code ${code}`;
         stop(`The claude run failed (${reason}) after ${time}${turns}.`);
       }
-      console.log(`  ✔ Done in ${time}${turns}${cost}`);
-      resolve();
+      console.log(`  ✔ Done in ${time}${turns} · ${formatUsage(usage)}`);
+      resolve(usage);
     });
   });
 
@@ -194,18 +251,21 @@ for (let issues = openIssues(); issues.length > 0; issues = openIssues()) {
     .replaceAll('{title}', issue.title)
     .replaceAll('{milestone}', config.milestone)
     .replaceAll('{branch}', config.branch);
-  await runClaude(prompt, config.model);
+  const issueUsage = await runClaude(prompt, config.model);
 
   checkFailed(`Issue #${issue.number} failed`);
   if (isTreeClean()) {
     stop(`Issue #${issue.number} run left no changes.`);
   }
-  await reviewAndCloseIssue(issue.number);
+  addUsage(issueUsage, await reviewAndCloseIssue(issue.number));
+  console.log(`📊 Issue #${issue.number}: ${formatUsage(issueUsage)}`);
 }
 
 await finishMilestone();
+printTotal();
 
 // Review the issue's uncommitted changes, commit them, push the branch and close the issue.
+// Returns the review run's token usage.
 async function reviewAndCloseIssue(issue) {
   // Stage everything so new files are part of the uncommitted diff the review sees.
   run('git', ['add', '-A']);
@@ -215,7 +275,7 @@ async function reviewAndCloseIssue(issue) {
   // and only this issue's changes are reviewed. Before the first push there is no upstream and
   // the review compares against `main`, which the branch was just created from.
   console.log(`🔍 Code review of issue #${issue}`);
-  await runClaude(
+  const usage = await runClaude(
     [
       `Issue #${issue} is implemented on branch "${config.branch}" and its changes are staged,`,
       'not committed. Run the code-review skill with the arguments "medium --fix" (no target),',
@@ -239,6 +299,7 @@ async function reviewAndCloseIssue(issue) {
   run('gh', ['issue', 'close', String(issue), '--comment', `Implemented and reviewed in ${sha}.`]);
   closedIssues.add(issue);
   console.log(`✅ Issue #${issue} closed.`);
+  return usage;
 }
 
 // Open the PR for the feature branch and review it.
