@@ -244,6 +244,29 @@
         "dateOfBirthTooEarly": "Дата не может быть раньше {min}",
         "dateOfBirthInFuture": "Дата не может быть в будущем"
       }
+    },
+    "password": {
+      "title": "Пароль",
+      "description": "После смены вы останетесь в системе на этом устройстве, а на остальных выход произойдёт в течение 15 минут.",
+      "currentPassword": "Текущий пароль",
+      "newPassword": "Новый пароль",
+      "newPasswordHint": "От {min} до {max} символов.",
+      "confirmNewPassword": "Повторите новый пароль",
+      "submit": "Сменить пароль",
+      "changed": "Пароль изменён.",
+      "retry": "Повторить",
+      "validation": {
+        "currentPasswordRequired": "Введите текущий пароль",
+        "currentPasswordTooLong": "Пароль должен быть не длиннее {max} символов",
+        "newPasswordTooShort": "Пароль должен быть не короче {min} символов",
+        "newPasswordTooLong": "Пароль должен быть не длиннее {max} символов",
+        "confirmNewPasswordRequired": "Повторите новый пароль",
+        "passwordsMismatch": "Пароли не совпадают"
+      },
+      "errors": {
+        "wrongCurrentPassword": "Текущий пароль указан неверно",
+        "failed": "Не удалось сменить пароль. Проверьте подключение и попробуйте ещё раз."
+      }
     }
   }
 }

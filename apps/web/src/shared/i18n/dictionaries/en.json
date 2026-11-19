@@ -244,6 +244,29 @@
         "dateOfBirthTooEarly": "The date must not be earlier than {min}",
         "dateOfBirthInFuture": "The date must not be in the future"
       }
+    },
+    "password": {
+      "title": "Password",
+      "description": "After the change, you stay signed in here; other devices are signed out within 15 minutes.",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "newPasswordHint": "From {min} to {max} characters.",
+      "confirmNewPassword": "Confirm new password",
+      "submit": "Change password",
+      "changed": "Password changed.",
+      "retry": "Try again",
+      "validation": {
+        "currentPasswordRequired": "Enter your current password",
+        "currentPasswordTooLong": "Password must be at most {max} characters",
+        "newPasswordTooShort": "Password must be at least {min} characters",
+        "newPasswordTooLong": "Password must be at most {max} characters",
+        "confirmNewPasswordRequired": "Confirm your new password",
+        "passwordsMismatch": "Passwords do not match"
+      },
+      "errors": {
+        "wrongCurrentPassword": "The current password is wrong",
+        "failed": "Couldn't change the password. Check your connection and try again."
+      }
     }
   }
 }

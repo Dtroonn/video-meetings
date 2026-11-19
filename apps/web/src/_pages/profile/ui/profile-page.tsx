@@ -1,6 +1,7 @@
 import { Card } from '@heroui/react';
 import type { Metadata } from 'next';
 import { getDictionary } from '@/shared/i18n/server';
+import { PasswordForm } from './password-form';
 import { ProfileDetails } from './profile-details';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -12,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * from the user store of the dashboard layout's `UserProvider`, on the client.
  */
 export async function ProfilePage() {
-  const { profile: t } = await getDictionary();
+  const { profile: t, common } = await getDictionary();
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
@@ -28,6 +29,18 @@ export async function ProfilePage() {
           />
         </Card.Content>
       </Card>
+      <section aria-labelledby="password-title" className="mt-10">
+        <h2 id="password-title" className="text-xl font-semibold tracking-tight">
+          {t.password.title}
+        </h2>
+        <p className="text-muted mt-2">{t.password.description}</p>
+        <Card className="mt-4">
+          <Card.Content>
+            {/* Doesn't need the user store: the api changes the password of the session's user. */}
+            <PasswordForm messages={t.password} passwordInputLabels={common.passwordInput} />
+          </Card.Content>
+        </Card>
+      </section>
     </main>
   );
 }
